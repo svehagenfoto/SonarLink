@@ -1,4 +1,4 @@
-const { app, ipcMain, BrowserWindow, globalShortcut } = require('electron');
+const { app, ipcMain, BrowserWindow, globalShortcut, shell } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const { isSubnauticaRunning, watchSubnautica } = require('./processWatch');
@@ -20,6 +20,7 @@ const {
 const { resetAllForTesting } = require('./resetManager');
 const { setThirdPersonEnabled, setThirdPersonDistance } = require('./gameBridge');
 const { parseKeyLabel, keyLabelToAccelerator } = require('./keybindParse');
+const devTemp = require('./devTempShortcuts');
 
 let stopWatch = null;
 let quitOnGameCloseWatch = null;
@@ -156,6 +157,24 @@ function prepareShell() {
     windows.createShellWindow({ showOnReady: false });
   }
 }
+
+devTemp.init({
+  windows,
+  waitForShellVisible,
+  getStopWatch: () => stopWatch,
+  setStopWatch: (value) => {
+    stopWatch = value;
+  },
+  setStartupComplete: (value) => {
+    startupComplete = value;
+  },
+  setLaunched: (value) => {
+    launched = value;
+  },
+  prepareShell,
+  registerShellHomeHotkey,
+  notifyThirdPersonCameraState,
+});
 
 function restartApp() {
   if (isRestarting) return;
@@ -443,6 +462,15 @@ ipcMain.handle('get-app-info', () => {
   };
 });
 
+ipcMain.handle('open-external-url', (_event, url) => {
+  if (typeof url !== 'string' || !/^https?:\/\//i.test(url)) {
+    return { ok: false };
+  }
+
+  shell.openExternal(url);
+  return { ok: true };
+});
+
 ipcMain.handle('get-initial-state', async () => {
   const running = await isSubnauticaRunning();
   return { gameRunning: running, startupComplete };
@@ -457,6 +485,9 @@ ipcMain.handle('startup-pick-data-folder', async (event) => {
   resolveDataFolder(folderPath);
   return { ok: true, path: folderPath };
 });
+
+// TEMP DEV
+ipcMain.handle('startup-skip-to-menu', async () => devTemp.skipToMenu());
 
 ipcMain.handle('startup-uninstall-sonarlink', async () => {
   if (await isSubnauticaRunning()) {

@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="../shared/components/keybind-knapp.css" />
   <link rel="stylesheet" href="../shared/components/slider-knapp.css" />
   <link rel="stylesheet" href="../shared/components/feature-panel.css" />
+  <link rel="stylesheet" href="credits-page.css" />
   <style>
     html, body {
       width: 100%;
@@ -190,11 +191,113 @@
         </section>
 
         <section class="page-panel" data-page="credits">
-          <div class="page-body">
-            <p class="credits-name" id="creditsDev">StypX2K</p>
-            <p>Creator and developer of SonarLink.</p>
-            <p id="creditsVersion">Version 2.0.0</p>
-            <p>A fan made companion tool for Subnautica 2. Not affiliated with Unknown Worlds Entertainment.</p>
+          <div class="page-body credits-page">
+            <div class="credits-box-row">
+              <div class="credits-box feature-slot">
+                <div class="credits-box-inner">
+                  <h2 class="credits-box-title">About SonarLink</h2>
+                  <p class="credits-box-text">
+                    SonarLink is a fan made companion tool for Subnautica 2. It installs the required bridge mod,
+                    opens an in game style menu, and adds features like third person camera.
+                  </p>
+                  <p class="credits-box-disclaimer">
+                    <span class="credits-box-disclaimer-label">Disclaimer:</span>
+                    Not affiliated with Unknown Worlds Entertainment. Subnautica 2 is a trademark of Unknown Worlds
+                    Entertainment.
+                  </p>
+                </div>
+              </div>
+
+              <div class="credits-box feature-slot">
+                <div class="credits-box-inner">
+                  <h2 class="credits-box-title">Creator and support</h2>
+                  <p class="credits-box-name" id="creditsDev">StypX2K</p>
+                  <p class="credits-box-text">Creator and developer of SonarLink.</p>
+                  <p class="credits-box-text">
+                    Join the Discord server for updates, feedback, and bug reports. Nexus endorsements also help a lot
+                    while SonarLink is still growing.
+                  </p>
+                  <ul class="credits-box-list">
+                    <li>Please report bugs and issues on Discord so they can be fixed faster</li>
+                  </ul>
+                  <div class="credits-box-actions credits-box-actions--two">
+                    <div
+                      class="sonar-toggle toggle-knapp credits-link-btn"
+                      role="button"
+                      tabindex="0"
+                      data-external-url="https://discord.gg/S2JQyBvwyB"
+                    >
+                      <span class="sonar-toggle-track">
+                        <span class="sonar-toggle-icon">
+                          <span class="sn2-ring-outer" aria-hidden="true"></span>
+                          <span class="sn2-ring-inner" aria-hidden="true"></span>
+                          <span class="core" aria-hidden="true"></span>
+                        </span>
+                        <span class="sonar-toggle-label">Join Discord</span>
+                        <span class="sn2-arc" aria-hidden="true"></span>
+                      </span>
+                    </div>
+
+                    <div
+                      class="sonar-toggle toggle-knapp credits-link-btn"
+                      role="button"
+                      tabindex="0"
+                      data-external-url="https://www.nexusmods.com/subnautica2/mods/434?tab=description"
+                    >
+                      <span class="sonar-toggle-track">
+                        <span class="sonar-toggle-icon">
+                          <span class="sn2-ring-outer" aria-hidden="true"></span>
+                          <span class="sn2-ring-inner" aria-hidden="true"></span>
+                          <span class="core" aria-hidden="true"></span>
+                        </span>
+                        <span class="sonar-toggle-label">Nexus page</span>
+                        <span class="sn2-arc" aria-hidden="true"></span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="credits-box feature-slot">
+                <div class="credits-box-inner">
+                  <h2 class="credits-box-title">Credits and dependencies</h2>
+                  <ul class="credits-box-list">
+                    <li>
+                      <button type="button" class="credits-text-link" data-external-url="https://www.nexusmods.com/subnautica2/mods/36">UE4SS</button>
+                      by the UE4SS team
+                    </li>
+                    <li>SonarLinkBridge by StypX2K</li>
+                    <li>CheatManagerEnablerMod (installed automatically)</li>
+                    <li>ConsoleEnablerMod (installed automatically)</li>
+                  </ul>
+                  <div class="credits-box-actions">
+                    <div
+                      class="sonar-toggle toggle-knapp credits-link-btn"
+                      role="button"
+                      tabindex="0"
+                      data-external-url="https://www.nexusmods.com/subnautica2/mods/36"
+                    >
+                      <span class="sonar-toggle-track">
+                        <span class="sonar-toggle-icon">
+                          <span class="sn2-ring-outer" aria-hidden="true"></span>
+                          <span class="sn2-ring-inner" aria-hidden="true"></span>
+                          <span class="core" aria-hidden="true"></span>
+                        </span>
+                        <span class="sonar-toggle-label">UE4SS credit</span>
+                        <span class="sn2-arc" aria-hidden="true"></span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="credits-license-box feature-slot">
+                  <p class="credits-license-text">
+                © StypX2K. All rights reserved. SonarLink may not be copied, modified, or distributed without
+                permission.
+              </p>
+            </div>
           </div>
         </section>
 

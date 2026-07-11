@@ -17,6 +17,16 @@ let clickOutsideArmed = false;
 let wasMouseDown = false;
 let onShellToggle = null;
 
+// TEMP DEV: disable click outside close after OPEN MENU (TEMP)
+let devTempDisableClickOutside = false;
+
+function setDevTempDisableClickOutside(disabled) {
+  devTempDisableClickOutside = Boolean(disabled);
+  if (devTempDisableClickOutside) {
+    stopClickOutsidePoll();
+  }
+}
+
 const CLICK_OUTSIDE_ARM_DELAY_MS = 500;
 
 function getPreloadPath() {
@@ -229,7 +239,11 @@ async function showShell() {
   shellWindow.focus();
   applyShellTaskbarHidden();
   setTimeout(() => applyShellTaskbarHidden(), 100);
-  startClickOutsidePoll();
+
+  // TEMP DEV: skip click outside close when opened via OPEN MENU (TEMP)
+  if (!devTempDisableClickOutside) {
+    startClickOutsidePoll();
+  }
 }
 
 function hideShell() {
@@ -297,4 +311,5 @@ module.exports = {
   getStartupWindow,
   getShellWindow,
   getHotkeyWindow,
+  setDevTempDisableClickOutside,
 };

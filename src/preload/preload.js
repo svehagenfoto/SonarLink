@@ -2,6 +2,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('sonarlink', {
   getAppInfo: () => ipcRenderer.invoke('get-app-info'),
+  openExternalUrl: (url) => ipcRenderer.invoke('open-external-url', url),
   getInitialState: () => ipcRenderer.invoke('get-initial-state'),
   onGameDetected: (cb) => {
     ipcRenderer.on('game-detected', () => cb());
@@ -13,6 +14,8 @@ contextBridge.exposeInMainWorld('sonarlink', {
     ipcRenderer.on('startup-error', (_event, payload) => cb(payload));
   },
   pickDataFolder: () => ipcRenderer.invoke('startup-pick-data-folder'),
+  // TEMP DEV
+  skipToMenu: () => ipcRenderer.invoke('startup-skip-to-menu'),
   uninstallSonarLink: () => ipcRenderer.invoke('startup-uninstall-sonarlink'),
   setThirdPersonEnabled: (enabled) => ipcRenderer.invoke('set-third-person-enabled', enabled),
   setThirdPersonBind: (key) => ipcRenderer.invoke('set-third-person-bind', key),

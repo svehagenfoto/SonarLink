@@ -14,6 +14,10 @@ const uninstallConfirmBlock = document.getElementById('uninstallConfirmBlock');
 const uninstallCancelBtn = document.getElementById('uninstallCancelBtn');
 const uninstallConfirmBtn = document.getElementById('uninstallConfirmBtn');
 
+// TEMP DEV START
+const devSkipToMenuBtn = document.getElementById('devSkipToMenuBtn');
+// TEMP DEV END
+
 function setUninstallConfirmVisible(visible) {
   uninstallConfirmBlock.classList.toggle('visible', visible);
   uninstallBlock.classList.toggle('visible', !visible);
@@ -71,6 +75,14 @@ chooseFolderBtn.addEventListener('click', () => {
 uninstallBtn.addEventListener('click', () => {
   setUninstallConfirmVisible(true);
 });
+
+// TEMP DEV START
+devSkipToMenuBtn.addEventListener('click', async () => {
+  devSkipToMenuBtn.disabled = true;
+  await window.sonarlink.skipToMenu();
+  devSkipToMenuBtn.disabled = false;
+});
+// TEMP DEV END
 
 uninstallCancelBtn.addEventListener('click', () => {
   setUninstallConfirmVisible(false);

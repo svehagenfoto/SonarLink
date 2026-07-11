@@ -23,9 +23,31 @@ document.getElementById('btnClose').addEventListener('click', () => {
   window.sonarlink.closeWindow();
 });
 
+function initCreditsExternalLinks() {
+  document.querySelectorAll('[data-external-url]').forEach((element) => {
+    const openLink = () => {
+      const url = element.getAttribute('data-external-url');
+      if (url && window.sonarlink?.openExternalUrl) {
+        window.sonarlink.openExternalUrl(url);
+      }
+    };
+
+    element.addEventListener('click', openLink);
+
+    if (element.getAttribute('role') === 'button') {
+      element.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          openLink();
+        }
+      });
+    }
+  });
+}
+
+initCreditsExternalLinks();
+
 window.sonarlink.getAppInfo().then((info) => {
-  const versionEl = document.getElementById('creditsVersion');
   const devEl = document.getElementById('creditsDev');
-  if (versionEl) versionEl.textContent = `Version ${info.version}`;
   if (devEl) devEl.textContent = info.developer;
 });
