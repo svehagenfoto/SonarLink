@@ -26,9 +26,19 @@ SonarLink is a mod companion for **Subnautica 2**. It runs alongside the game, i
 - Subnautica 2 (Steam)
 - Node.js (for development only)
 
-On first start, SonarLink asks you to choose a data folder (for example `C:\SonarLink`). Config, logs, and game bridge files are stored there.
+## First launch
 
-SonarLink installs UE4SS and the SonarLink bridge mod into the game folder. On some PCs you may need to **run SonarLink as administrator** for the install to succeed.
+1. Close Subnautica 2 if it is already open
+2. Start `SonarLink.exe` as administrator. Always run SonarLink as administrator. If you do not, the program may not work properly
+3. Choose a folder when asked. This is where SonarLink keeps its files
+4. Click Yes when asked to download required components
+5. Wait until the install finishes
+6. SonarLink will prompt you to launch Subnautica 2
+7. Start Subnautica 2 from Steam
+8. Make sure Subnautica 2 is in windowed fullscreen, not fullscreen
+9. SonarLink opens the mod menu when the game is running
+
+Press **Home** to open and close the menu while playing.
 
 ## Development setup
 
