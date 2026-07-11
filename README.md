@@ -67,7 +67,7 @@ Output: `SonarLink-{version}.exe` in the project root.
 
 ### Creator and support
 
-**StypX2K** — Creator and developer of SonarLink.
+**StypX2K**, creator and developer of SonarLink.
 
 Join the [Discord server](https://discord.gg/S2JQyBvwyB) for updates, feedback, and bug reports. Please report bugs in the [support channel](https://discordapp.com/channels/1524781503161307336/1525247960126980146). Nexus endorsements also help a lot while SonarLink is still growing.
 
