@@ -293,9 +293,10 @@
             </div>
 
             <div class="credits-license-box feature-slot">
-                  <p class="credits-license-text">
+              <p class="credits-license-text">
                 © StypX2K. All rights reserved. SonarLink may not be copied, modified, or distributed without
                 permission.
+                <button type="button" class="credits-text-link credits-license-open-btn" id="btnOpenLicense">License</button>
               </p>
             </div>
           </div>
@@ -306,6 +307,103 @@
             <p>Application settings will appear here.</p>
           </div>
         </section>
+      </div>
+
+      <div class="credits-license-overlay" id="creditsLicenseOverlay" hidden aria-hidden="true">
+        <div class="credits-license-overlay-dim" id="creditsLicenseOverlayDim"></div>
+        <div class="credits-license-doc-shell" id="creditsLicenseDocShell">
+          <div class="credits-license-doc feature-slot">
+            <div class="credits-license-doc-inner">
+              <div class="credits-license-doc-header">
+                <h2 class="credits-license-doc-title">License</h2>
+                <button type="button" class="credits-text-link credits-license-back-btn" id="btnCloseLicense">Back</button>
+              </div>
+              <div class="credits-license-doc-paper" id="creditsLicenseDocPaper">
+                <p class="credits-license-doc-lead"><strong>SonarLink Proprietary License</strong></p>
+                <p>Copyright (c) 2026 StypX2K (Hermann Svehagen). All rights reserved.</p>
+                <p>
+                  This license applies to SonarLink and all related materials, including but not limited to source
+                  code, design, user interface, assets, documentation, mod bridge files, functionality, and compiled
+                  releases.
+                </p>
+
+                <h3 class="credits-license-doc-section">Ownership</h3>
+                <p>
+                  StypX2K owns all rights, title, and interest in SonarLink, including its design and functionality.
+                  Nothing in this license grants ownership to any other person or party.
+                </p>
+
+                <h3 class="credits-license-doc-section">Permitted use</h3>
+                <p>
+                  You may download and run official SonarLink releases distributed by StypX2K through approved channels
+                  such as Nexus Mods and the official Discord server.
+                </p>
+
+                <h3 class="credits-license-doc-section">Video and streams content</h3>
+                <p>
+                  You may create videos, streams, and other video content featuring SonarLink for platforms such as
+                  YouTube, provided that the published video or its description includes a visible, clickable link to
+                  the official SonarLink Discord server that viewers can open or copy:
+                </p>
+                <div class="credits-license-discord-row">
+                  <button
+                    type="button"
+                    class="credits-text-link credits-license-discord-link"
+                    data-external-url="https://discord.gg/S2JQyBvwyB"
+                  >
+                    https://discord.gg/S2JQyBvwyB
+                  </button>
+                  <button type="button" class="credits-license-copy-btn" id="btnCopyLicenseDiscord">Copy</button>
+                </div>
+
+                <h3 class="credits-license-doc-section">Prohibited without prior written permission from StypX2K</h3>
+                <p>You may not, unless StypX2K explicitly grants you written permission:</p>
+                <ol class="credits-license-doc-list">
+                  <li>Copy, reproduce, or redistribute any part of SonarLink</li>
+                  <li>Modify, adapt, translate, or create derivative works based on SonarLink</li>
+                  <li>
+                    Use SonarLink source code, design, assets, or functionality in another project, product, mod, tool,
+                    or service
+                  </li>
+                  <li>Publish, sublicense, sell, or commercially exploit SonarLink or any part of it</li>
+                  <li>Remove or alter copyright notices, license terms, or attribution</li>
+                  <li>Fork, rebrand, or republish SonarLink as your own work</li>
+                  <li>Grant access to third parties using code or materials obtained from SonarLink</li>
+                </ol>
+
+                <h3 class="credits-license-doc-section">Permission requests</h3>
+                <p>
+                  If you wish to use SonarLink beyond what is permitted above, you must contact StypX2K and receive
+                  explicit written approval before doing so.
+                </p>
+                <p>Contact:</p>
+                <p>
+                  Discord:
+                  <button
+                    type="button"
+                    class="credits-text-link credits-license-discord-link"
+                    data-external-url="https://discord.gg/S2JQyBvwyB"
+                  >
+                    https://discord.gg/S2JQyBvwyB
+                  </button>
+                </p>
+
+                <h3 class="credits-license-doc-section">No warranty</h3>
+                <p>
+                  SonarLink is provided as is without warranty of any kind. StypX2K is not liable for any damages
+                  arising from use of this software.
+                </p>
+
+                <h3 class="credits-license-doc-section">Enforcement</h3>
+                <p>
+                  Unauthorized use may result in takedown requests and other legal action to the fullest extent
+                  permitted by law.
+                </p>
+                <p>By using SonarLink you agree to these terms.</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
