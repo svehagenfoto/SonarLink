@@ -61,8 +61,27 @@ Output: `SonarLink-{version}.exe` in the project root.
 | Shared UI components | `src/renderer/shared/` |
 | Game bridge mod | `bundled-mods/SonarLinkBridge/` |
 
-## Copyright
+## SonarLink Credits
 
-© Hermann Svehagen. All rights reserved.
+**Disclaimer:** Not affiliated with Unknown Worlds Entertainment. Subnautica 2 is a trademark of Unknown Worlds Entertainment.
 
-This is a private repository. The code may not be copied, modified, or distributed without permission.
+### Creator and support
+
+**StypX2K** — Creator and developer of SonarLink.
+
+Join the [Discord server](https://discord.gg/S2JQyBvwyB) for updates, feedback, and bug reports. Please report bugs in the [support channel](https://discordapp.com/channels/1524781503161307336/1525247960126980146). Nexus endorsements also help a lot while SonarLink is still growing.
+
+- [Nexus page](https://www.nexusmods.com/subnautica2/mods/434)
+
+### Credits and dependencies
+
+- [UE4SS](https://www.nexusmods.com/subnautica2/mods/36) by the UE4SS team
+- SonarLinkBridge by StypX2K
+- CheatManagerEnablerMod (installed automatically, bundled with UE4SS)
+- ConsoleEnablerMod (installed automatically, bundled with UE4SS)
+
+### License
+
+© StypX2K. All rights reserved. SonarLink may not be copied, modified, or distributed without permission.
+
+This is a private repository. Access is granted by invitation only.
