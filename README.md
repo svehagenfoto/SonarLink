@@ -4,21 +4,21 @@ SonarLink is a mod companion for **Subnautica 2**. It runs alongside the game, i
 
 ## Current features
 
-**Third person camera** — Toggle third person view, set a custom keybind, and adjust camera distance with a slider.
+**Third person camera**: Toggle third person view, set a custom keybind, and adjust camera distance with a slider.
 
-**Auto vehicle camera adjust** — When you enter or leave a vehicle, the third person camera distance adjusts automatically for a better view.
+**Auto vehicle camera adjust**: When you enter or leave a vehicle, the third person camera distance adjusts automatically for a better view.
 
-**In game menu** — Press **Home** to open and close the SonarLink menu while playing.
+**In game menu**: Press **Home** to open and close the SonarLink menu while playing.
 
-**Auto close** — SonarLink closes when Subnautica 2 closes.
+**Auto close**: SonarLink closes when Subnautica 2 closes.
 
 ## Planned features
 
-**Growing minimap** — A live 2D view of the world that reveals and expands as you swim and explore.
+**Growing minimap**: A live 2D view of the world that reveals and expands as you swim and explore.
 
-**Full map view** — Open a larger map to see everything you have already discovered and the areas you have swum through.
+**Full map view**: Open a larger map to see everything you have already discovered and the areas you have swum through.
 
-**Custom map markers** — Place named markers on the full map. SonarLink remembers them and shows them on both the full map and the minimap.
+**Custom map markers**: Place named markers on the full map. SonarLink remembers them and shows them on both the full map and the minimap.
 
 ## Requirements
 
