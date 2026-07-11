@@ -4,7 +4,7 @@
   "description": "SonarLink mod companion for Subnautica 2",
   "main": "src/main/index.js",
   "author": "Hermann Svehagen",
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE",
   "scripts": {
     "assets": "node scripts/generate-assets.js",
     "dev": "electron .",

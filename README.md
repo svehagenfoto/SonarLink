@@ -92,6 +92,10 @@ Join the [Discord server](https://discord.gg/S2JQyBvwyB) for updates, feedback, 
 
 ### License
 
-© StypX2K. All rights reserved. SonarLink may not be copied, modified, or distributed without permission.
+SonarLink is proprietary software. See [LICENSE](LICENSE) for full terms.
 
-This is a private repository. Access is granted by invitation only.
+Copyright (c) 2026 StypX2K (Hermann Svehagen). All rights reserved.
+
+Only StypX2K may use, modify, or distribute SonarLink by default. Any other use
+requires prior written permission. This includes SonarLink design, source code,
+and functionality.
