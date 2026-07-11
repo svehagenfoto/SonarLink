@@ -1,0 +1,69 @@
+{
+  "name": "sonarlink",
+  "version": "2.0.8",
+  "description": "SonarLink mod companion for Subnautica 2",
+  "main": "src/main/index.js",
+  "author": "Hermann Svehagen",
+  "license": "MIT",
+  "scripts": {
+    "assets": "node scripts/generate-assets.js",
+    "dev": "electron .",
+    "restart": "node scripts/restart-dev.js",
+    "start": "npm run assets && electron .",
+    "prebuild": "node scripts/prebuild.js",
+    "build": "npm run assets && electron-builder --win portable",
+    "postinstall": "npm run assets"
+  },
+  "build": {
+    "appId": "com.hermannsvehagen.sonarlink",
+    "productName": "SonarLink",
+    "directories": {
+      "output": "."
+    },
+    "files": [
+      "src/**/*",
+      "Assets/generated/**/*",
+      "bundled-mods/**/*",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "**/node_modules/koffi/**/*",
+      "bundled-mods/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "Assets/generated",
+        "to": "assets",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "SonarLink-${version}.exe",
+      "icon": "Assets/generated/icon.ico",
+      "signAndEditExecutable": false
+    },
+    "portable": {
+      "artifactName": "SonarLink-${version}.exe"
+    }
+  },
+  "dependencies": {
+    "adm-zip": "^0.5.18",
+    "koffi": "^2.11.0"
+  },
+  "devDependencies": {
+    "electron": "^35.0.3",
+    "electron-builder": "^25.1.8",
+    "png-to-ico": "^2.1.8",
+    "sharp": "^0.33.5"
+  }
+}

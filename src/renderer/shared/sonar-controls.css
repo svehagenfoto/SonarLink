@@ -1,0 +1,164 @@
+/* SonarLink control design (test) — based on startup status pill */
+
+:root {
+  --text-light-blue: #a8e8ff;
+  --accent-green: #7dffb8;
+  --accent-green-dim: rgba(125, 255, 184, 0.35);
+  --toggle-red: #ff7a86;
+  --toggle-red-dim: rgba(255, 100, 110, 0.5);
+  --toggle-orange: #ffd54a;
+  --toggle-orange-dim: rgba(245, 166, 35, 0.55);
+  --toggle-fade: 0.5s ease-in-out;
+  --control-border-idle: rgba(94, 235, 240, 0.14);
+  --control-bg: rgba(10, 40, 50, 0.88);
+}
+
+
+.sonar-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px 10px 10px;
+  min-height: 52px;
+  border: 1px solid var(--control-border-idle);
+  border-radius: 999px;
+  background: var(--control-bg);
+  backdrop-filter: blur(8px);
+  cursor: pointer;
+  font-family: var(--font-main);
+  transition:
+    border-color 0.35s ease,
+    box-shadow 0.35s ease,
+    background 0.35s ease;
+  box-shadow: none;
+  outline: none;
+}
+
+.sonar-btn-icon {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+}
+
+.sonar-btn-icon .ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(94, 235, 240, 0.22);
+  transition: border-color 0.35s ease, opacity 0.35s ease;
+}
+
+.sonar-btn-icon .ring:nth-child(2) {
+  inset: 4px;
+  border-style: dashed;
+  opacity: 0.45;
+}
+
+.sonar-btn-icon .ring:nth-child(3) {
+  inset: 8px;
+  opacity: 0.3;
+}
+
+.sonar-btn-icon .core {
+  position: absolute;
+  inset: 12px;
+  border-radius: 50%;
+  background: rgba(94, 235, 240, 0.12);
+  box-shadow: none;
+  transition:
+    background 0.35s ease,
+    box-shadow 0.35s ease,
+    transform 0.35s ease;
+}
+
+.sonar-btn-text {
+  flex: 1;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-light-blue);
+  text-align: left;
+  transition: color 0.35s ease;
+}
+
+.sonar-btn-accent {
+  width: 3px;
+  height: 26px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, transparent, rgba(94, 235, 240, 0.2), transparent);
+  flex-shrink: 0;
+  transition: background 0.35s ease, opacity 0.35s ease;
+  opacity: 0.5;
+}
+
+.sonar-btn:hover {
+  border-color: rgba(94, 235, 240, 0.55);
+  box-shadow: 0 0 18px rgba(94, 235, 240, 0.18);
+}
+
+.sonar-btn:hover .sonar-btn-icon .ring {
+  border-color: rgba(94, 235, 240, 0.55);
+  opacity: 0.75;
+}
+
+.sonar-btn:hover .sonar-btn-icon .core {
+  background: radial-gradient(circle, var(--accent-cyan) 0%, rgba(94, 235, 240, 0.2) 70%);
+  box-shadow: 0 0 14px rgba(94, 235, 240, 0.65);
+  animation: sonarCoreBlue 1.6s ease-in-out infinite;
+}
+
+.sonar-btn:hover .sonar-btn-accent {
+  background: linear-gradient(180deg, transparent, var(--accent-cyan), transparent);
+  opacity: 1;
+}
+
+.sonar-btn.active {
+  border-color: rgba(125, 255, 184, 0.65);
+  box-shadow: 0 0 20px rgba(125, 255, 184, 0.2);
+}
+
+.sonar-btn.active .sonar-btn-icon .ring {
+  border-color: rgba(125, 255, 184, 0.55);
+}
+
+.sonar-btn.active .sonar-btn-icon .core {
+  background: radial-gradient(circle, var(--accent-green) 0%, rgba(125, 255, 184, 0.25) 70%);
+  box-shadow: 0 0 16px rgba(125, 255, 184, 0.75);
+  animation: sonarCoreGreen 1.8s ease-in-out infinite;
+}
+
+.sonar-btn.active .sonar-btn-accent {
+  background: linear-gradient(180deg, transparent, var(--accent-green), transparent);
+  opacity: 1;
+}
+
+.sonar-btn.active:hover {
+  border-color: rgba(125, 255, 184, 0.75);
+  box-shadow: 0 0 22px rgba(125, 255, 184, 0.28);
+}
+
+.sonar-btn.active:hover .sonar-btn-icon .core {
+  animation: sonarCoreGreen 1.8s ease-in-out infinite;
+}
+
+.sonar-btn.active .sonar-btn-text {
+  color: #d4fff0;
+}
+
+@keyframes sonarCoreBlue {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 12px rgba(94, 235, 240, 0.5); }
+  50% { transform: scale(1.12); box-shadow: 0 0 22px rgba(94, 235, 240, 0.85); }
+}
+
+@keyframes sonarCoreGreen {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 14px rgba(125, 255, 184, 0.6); }
+  50% { transform: scale(1.12); box-shadow: 0 0 24px rgba(125, 255, 184, 0.9); }
+}
+
+@keyframes sn2GlowPulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}

@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SonarLink</title>
+  <link rel="stylesheet" href="../shared/theme.css" />
+  <link rel="stylesheet" href="../shared/sonar-controls.css" />
+  <link rel="stylesheet" href="../shared/components/toggle-knapp.css" />
+  <link rel="stylesheet" href="../shared/components/keybind-knapp.css" />
+  <link rel="stylesheet" href="../shared/components/slider-knapp.css" />
+  <link rel="stylesheet" href="../shared/components/feature-panel.css" />
+  <style>
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      background: #061820;
+      overflow: hidden;
+    }
+
+    .shell-panel {
+      width: 100%;
+      height: 100%;
+      border: 1px solid rgba(94, 235, 240, 0.12);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .shell-root {
+      position: relative;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .shell-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid rgba(94, 235, 240, 0.1);
+      flex-shrink: 0;
+      -webkit-app-region: drag;
+    }
+
+    .shell-header .title-sonarlink {
+      font-size: 22px;
+      letter-spacing: 0.12em;
+    }
+
+    .shell-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .window-controls {
+      position: static;
+      -webkit-app-region: no-drag;
+    }
+    .customize-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      width: 100%;
+      min-width: 0;
+      overflow-x: clip;
+      overflow-y: visible;
+    }
+  </style>
+</head>
+<body>
+  <div class="shell-panel">
+    <div class="ocean-bg shell-root">
+      <div class="shell-header">
+        <h1 class="title-sonarlink">SonarLink</h1>
+        <div class="window-controls">
+          <button class="win-btn" id="btnClose">✕</button>
+        </div>
+      </div>
+
+      <nav class="shell-nav" id="shellNav">
+        <button class="nav-btn active" data-page="customize">Customize</button>
+        <button class="nav-btn" data-page="adjustments">Adjustments</button>
+        <button class="nav-btn" data-page="keybinds">Keybinds</button>
+        <button class="nav-btn" data-page="credits">Credits</button>
+        <button class="nav-btn" data-page="settings">Settings</button>
+      </nav>
+
+      <div class="shell-content">
+        <section class="page-panel visible" data-page="customize">
+          <div class="page-body">
+            <div class="customize-controls">
+              <div class="customize-feature-row">
+                <div class="feature-column">
+                  <div class="feature-panel" id="thirdPersonPanel" data-feature="third-person">
+                    <label class="sonar-toggle toggle-knapp">
+                      <input type="checkbox" class="feature-panel-enable" id="thirdPersonEnable" />
+                      <span class="sonar-toggle-track">
+                        <span class="sonar-toggle-icon">
+                          <span class="sn2-ring-outer" aria-hidden="true"></span>
+                          <span class="sn2-ring-inner" aria-hidden="true"></span>
+                          <span class="core" aria-hidden="true"></span>
+                        </span>
+                        <span class="sonar-toggle-label">Enable 3rd person</span>
+                        <span class="sonar-toggle-switch" aria-hidden="true"></span>
+                        <span class="sn2-arc" aria-hidden="true"></span>
+                      </span>
+                    </label>
+
+                    <div class="feature-panel-expand">
+                      <div class="feature-panel-expand-inner">
+                        <div class="feature-panel-reveal">
+                          <div
+                            class="sonar-toggle keybind-knapp feature-panel-keybind"
+                            id="thirdPersonKeybind"
+                            role="button"
+                            tabindex="0"
+                            data-state="unbound"
+                          >
+                            <span class="sonar-toggle-track">
+                              <span class="sonar-toggle-icon">
+                                <span class="sn2-ring-outer" aria-hidden="true"></span>
+                                <span class="sn2-ring-inner" aria-hidden="true"></span>
+                                <span class="core" aria-hidden="true"></span>
+                              </span>
+                              <span class="sonar-toggle-label">3rd person bind</span>
+                              <span class="keybind-slot" aria-live="polite">
+                                <span class="keybind-slot-text">NONE</span>
+                              </span>
+                              <span class="sn2-arc" aria-hidden="true"></span>
+                            </span>
+                          </div>
+                        </div>
+
+                        <div class="feature-panel-reveal">
+                          <div
+                            class="sonar-slider slider-knapp feature-panel-distance"
+                            id="thirdPersonDistance"
+                            data-value="50"
+                          >
+                            <div class="sonar-slider-track">
+                              <span class="sonar-slider-icon" aria-hidden="true">
+                                <span class="sn2-ring-outer"></span>
+                                <span class="sn2-ring-inner"></span>
+                                <span class="core"></span>
+                              </span>
+                              <span class="sonar-slider-label">Camera distance</span>
+                              <div
+                                class="sonar-slider-rail"
+                                role="slider"
+                                tabindex="0"
+                                aria-valuemin="1"
+                                aria-valuemax="99"
+                                aria-valuenow="50"
+                                aria-label="Camera distance"
+                              >
+                                <div class="sonar-slider-fill"></div>
+                                <button type="button" class="sonar-slider-thumb" aria-label="Slider value">
+                                  <span class="sonar-slider-value">50</span>
+                                </button>
+                              </div>
+                              <span class="sn2-arc" aria-hidden="true"></span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="page-panel" data-page="adjustments">
+          <div class="page-body">
+            <p>Adjustment controls will appear here.</p>
+          </div>
+        </section>
+
+        <section class="page-panel" data-page="keybinds">
+          <div class="page-body">
+            <p>Keybind configuration will appear here.</p>
+          </div>
+        </section>
+
+        <section class="page-panel" data-page="credits">
+          <div class="page-body">
+            <p class="credits-name" id="creditsDev">StypX2K</p>
+            <p>Creator and developer of SonarLink.</p>
+            <p id="creditsVersion">Version 2.0.0</p>
+            <p>A fan made companion tool for Subnautica 2. Not affiliated with Unknown Worlds Entertainment.</p>
+          </div>
+        </section>
+
+        <section class="page-panel" data-page="settings">
+          <div class="page-body">
+            <p>Application settings will appear here.</p>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+  <script src="../shared/components/keybind-knapp.js"></script>
+  <script src="../shared/components/slider-knapp.js"></script>
+  <script src="../shared/components/feature-panel.js"></script>
+  <script src="shell.js"></script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+node_modules/
+dist/
+Assets/generated/
+SonarLink/
+sonarlink.location
+SonarLink.exe
+SonarLink-*.exe
+win-unpacked/
+builder-debug.yml
+builder-effective-config.yaml
+*.log
+
+# Never upload
+.cursor/
+SonarLink-PROSJEKT-ARKIV.md

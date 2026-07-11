@@ -1,0 +1,191 @@
+/* Feature panel — expandable wrapper for locked controls */
+
+:root {
+  --feature-panel-inset: 12px;
+  --feature-reveal-duration: 0.44s;
+  --feature-reveal-easing: cubic-bezier(0.22, 1.12, 0.36, 1);
+  --feature-reveal-base-delay: 0.08s;
+  --feature-reveal-stagger: 0.26s;
+}
+
+.customize-feature-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
+  width: 100%;
+  overflow: visible;
+}
+
+.feature-column {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  width: 100%;
+  overflow: visible;
+}
+
+.feature-slot,
+.feature-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  overflow: visible;
+  padding: var(--feature-panel-inset);
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  box-sizing: border-box;
+}
+
+.feature-slot {
+  min-height: calc(54px * 0.5 + var(--feature-panel-inset) * 2);
+}
+
+.feature-slot::before,
+.feature-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 14px;
+  pointer-events: none;
+  z-index: 0;
+  transition:
+    border-color 0.4s ease,
+    box-shadow 0.4s ease,
+    background 0.4s ease;
+}
+
+.feature-slot::before {
+  border: 1px solid rgba(94, 235, 240, 0.08);
+  background: rgba(3, 14, 20, 0.82);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.feature-panel::before {
+  border: 1px solid rgba(94, 235, 240, 0.1);
+  background: rgba(3, 14, 20, 0.82);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 4px 20px rgba(0, 0, 0, 0.25);
+}
+
+.feature-panel.is-expanded::before {
+  border-color: rgba(94, 235, 240, 0.18);
+  background: rgba(3, 16, 22, 0.9);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 6px 28px rgba(0, 0, 0, 0.32);
+}
+
+.feature-slot > *,
+.feature-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+.feature-panel > .sonar-toggle,
+.feature-panel .feature-panel-reveal > * {
+  width: 100%;
+  max-width: 100%;
+}
+
+.feature-panel-expand {
+  width: 100%;
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.feature-panel.is-expanded .feature-panel-expand {
+  grid-template-rows: 1fr;
+}
+
+.feature-panel-expand-inner {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  padding: 0;
+  transition: padding-top 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.feature-panel.is-expanded .feature-panel-expand-inner {
+  padding-top: 12px;
+}
+
+.feature-panel-reveal {
+  opacity: 0;
+  transform: translateY(-18px);
+  pointer-events: none;
+}
+
+.feature-panel.is-expanded:not(.reveals-settled) .feature-panel-reveal {
+  animation: featureDropIn var(--feature-reveal-duration) var(--feature-reveal-easing) forwards;
+  pointer-events: auto;
+}
+
+.feature-panel.is-expanded.reveals-settled .feature-panel-reveal {
+  animation: none;
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.feature-panel.is-expanded:not(.reveals-settled) .feature-panel-reveal:nth-child(1) { animation-delay: calc(var(--feature-reveal-base-delay) + var(--feature-reveal-stagger) * 0); }
+.feature-panel.is-expanded:not(.reveals-settled) .feature-panel-reveal:nth-child(2) { animation-delay: calc(var(--feature-reveal-base-delay) + var(--feature-reveal-stagger) * 1); }
+.feature-panel.is-expanded:not(.reveals-settled) .feature-panel-reveal:nth-child(3) { animation-delay: calc(var(--feature-reveal-base-delay) + var(--feature-reveal-stagger) * 2); }
+.feature-panel.is-expanded:not(.reveals-settled) .feature-panel-reveal:nth-child(4) { animation-delay: calc(var(--feature-reveal-base-delay) + var(--feature-reveal-stagger) * 3); }
+.feature-panel.is-expanded:not(.reveals-settled) .feature-panel-reveal:nth-child(5) { animation-delay: calc(var(--feature-reveal-base-delay) + var(--feature-reveal-stagger) * 4); }
+.feature-panel.is-expanded:not(.reveals-settled) .feature-panel-reveal:nth-child(6) { animation-delay: calc(var(--feature-reveal-base-delay) + var(--feature-reveal-stagger) * 5); }
+.feature-panel.is-expanded:not(.reveals-settled) .feature-panel-reveal:nth-child(7) { animation-delay: calc(var(--feature-reveal-base-delay) + var(--feature-reveal-stagger) * 6); }
+.feature-panel.is-expanded:not(.reveals-settled) .feature-panel-reveal:nth-child(8) { animation-delay: calc(var(--feature-reveal-base-delay) + var(--feature-reveal-stagger) * 7); }
+.feature-panel.is-expanded:not(.reveals-settled) .feature-panel-reveal:nth-child(9) { animation-delay: calc(var(--feature-reveal-base-delay) + var(--feature-reveal-stagger) * 8); }
+.feature-panel.is-expanded:not(.reveals-settled) .feature-panel-reveal:nth-child(10) { animation-delay: calc(var(--feature-reveal-base-delay) + var(--feature-reveal-stagger) * 9); }
+.feature-panel.is-expanded:not(.reveals-settled) .feature-panel-reveal:nth-child(11) { animation-delay: calc(var(--feature-reveal-base-delay) + var(--feature-reveal-stagger) * 10); }
+.feature-panel.is-expanded:not(.reveals-settled) .feature-panel-reveal:nth-child(12) { animation-delay: calc(var(--feature-reveal-base-delay) + var(--feature-reveal-stagger) * 11); }
+
+.feature-panel:not(.is-expanded) .feature-panel-reveal {
+  animation: none;
+  opacity: 0;
+  transform: translateY(-18px);
+  pointer-events: none;
+}
+
+/* 3rd person active — keybind on state (does not affect enable toggle) */
+
+.sonar-toggle.keybind-knapp.is-third-person-active[data-state="bound"] .sonar-toggle-track {
+  border-color: rgba(125, 255, 184, 0.72);
+  box-shadow:
+    inset 0 max(0.5px, calc(1px * var(--ts))) 0 rgba(255, 255, 255, 0.08),
+    0 0 calc(26px * var(--ts)) rgba(125, 255, 184, 0.28);
+}
+
+.sonar-toggle.keybind-knapp.is-third-person-active[data-state="bound"] .sonar-toggle-label::after {
+  content: ' · ON';
+  color: var(--accent-green);
+  text-shadow: 0 0 8px rgba(125, 255, 184, 0.6);
+}
+
+@keyframes featureDropIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-18px);
+  }
+  55% {
+    opacity: 1;
+    transform: translateY(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

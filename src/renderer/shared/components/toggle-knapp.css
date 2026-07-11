@@ -1,0 +1,364 @@
+/* Toggle knapp — SN2 inspired feature toggle (50% scale preset) */
+
+.sonar-toggle {
+  --ts: 1;
+  position: relative;
+  display: block;
+  cursor: pointer;
+  width: 100%;
+  max-width: calc(520px * var(--ts));
+}
+
+.sonar-toggle.toggle-knapp {
+  --ts: 0.5;
+  --toggle-label-size: 11px;
+  --switch-w: 40px;
+  --switch-h: 18px;
+  --switch-knob: 14px;
+  --switch-pad: 2px;
+  --switch-travel: 22px;
+}
+
+.sonar-toggle.toggle-knapp .sonar-toggle-track {
+  overflow: visible;
+  backdrop-filter: none;
+}
+
+.sonar-toggle.toggle-knapp .sonar-toggle-switch {
+  width: var(--switch-w);
+  height: var(--switch-h);
+  box-sizing: border-box;
+}
+
+.sonar-toggle.toggle-knapp .sonar-toggle-switch::after {
+  top: 50%;
+  left: var(--switch-pad);
+  width: var(--switch-knob);
+  height: var(--switch-knob);
+  transform: translateY(-50%);
+}
+
+.sonar-toggle.toggle-knapp input:checked + .sonar-toggle-track .sonar-toggle-switch::after {
+  transform: translateY(-50%) translateX(var(--switch-travel));
+}
+
+.sonar-toggle input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.sonar-toggle-track {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: calc(18px * var(--ts));
+  padding: calc(6px * var(--ts)) calc(16px * var(--ts)) calc(6px * var(--ts)) calc(6px * var(--ts));
+  border: max(0.5px, calc(1px * var(--ts))) solid rgba(148, 168, 178, 0.22);
+  border-radius: 999px;
+  background: linear-gradient(
+    180deg,
+    rgba(22, 58, 68, 0.55) 0%,
+    rgba(10, 32, 40, 0.72) 100%
+  );
+  backdrop-filter: blur(calc(12px * var(--ts)));
+  box-shadow: inset 0 max(0.5px, calc(1px * var(--ts))) 0 rgba(255, 255, 255, 0.05);
+  transition:
+    border-color var(--toggle-fade),
+    box-shadow var(--toggle-fade),
+    background var(--toggle-fade);
+  min-height: calc(54px * var(--ts));
+  width: 100%;
+  overflow: hidden;
+}
+
+.sonar-toggle-icon {
+  position: relative;
+  width: calc(44px * var(--ts));
+  height: calc(44px * var(--ts));
+  flex-shrink: 0;
+  z-index: 2;
+}
+
+.sonar-toggle-icon .sn2-ring-outer {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: transparent;
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 9px * var(--ts)), #000 calc(100% - 3px * var(--ts)));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 9px * var(--ts)), #000 calc(100% - 3px * var(--ts)));
+}
+
+.sonar-toggle-icon .sn2-ring-outer::before,
+.sonar-toggle-icon .sn2-ring-outer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  transition: opacity var(--toggle-fade);
+}
+
+.sonar-toggle-icon .sn2-ring-outer::before {
+  background: conic-gradient(
+    from 205deg,
+    rgba(255, 140, 150, 0.72) 0deg 94deg,
+    transparent 94deg 110deg,
+    rgba(255, 140, 150, 0.72) 110deg 204deg,
+    transparent 204deg 220deg,
+    rgba(255, 140, 150, 0.72) 220deg 344deg,
+    transparent 344deg 360deg
+  );
+  opacity: 1;
+  filter: drop-shadow(0 0 calc(4px * var(--ts)) rgba(255, 90, 100, 0.35));
+}
+
+.sonar-toggle-icon .sn2-ring-outer::after {
+  background: conic-gradient(
+    from 205deg,
+    rgba(210, 255, 230, 0.98) 0deg 94deg,
+    transparent 94deg 110deg,
+    rgba(210, 255, 230, 0.98) 110deg 204deg,
+    transparent 204deg 220deg,
+    rgba(210, 255, 230, 0.98) 220deg 344deg,
+    transparent 344deg 360deg
+  );
+  opacity: 0;
+  filter: drop-shadow(0 0 calc(8px * var(--ts)) rgba(125, 255, 184, 0.55));
+}
+
+.sonar-toggle:has(input:checked) .sonar-toggle-icon .sn2-ring-outer::before {
+  opacity: 0;
+}
+
+.sonar-toggle:has(input:checked) .sonar-toggle-icon .sn2-ring-outer::after {
+  opacity: 1;
+}
+
+.sonar-toggle-icon .sn2-ring-inner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: calc(26px * var(--ts));
+  height: calc(26px * var(--ts));
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: max(0.5px, calc(1px * var(--ts))) solid rgba(255, 130, 140, 0.62);
+  box-shadow: 0 0 calc(6px * var(--ts)) rgba(255, 90, 100, 0.25);
+  transition: border-color var(--toggle-fade), box-shadow var(--toggle-fade);
+}
+
+.sonar-toggle:has(input:checked) .sonar-toggle-icon .sn2-ring-inner {
+  border-color: rgba(125, 255, 184, 0.75);
+  box-shadow: 0 0 calc(10px * var(--ts)) rgba(125, 255, 184, 0.45);
+}
+
+.sonar-toggle-icon .core {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: calc(16px * var(--ts));
+  height: calc(16px * var(--ts));
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.sonar-toggle-icon .core::before,
+.sonar-toggle-icon .core::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  transition: opacity var(--toggle-fade);
+}
+
+.sonar-toggle-icon .core::before {
+  background: radial-gradient(circle, var(--toggle-red) 0%, rgba(190, 55, 65, 0.9) 72%);
+  box-shadow:
+    inset 0 max(0.5px, calc(1px * var(--ts))) calc(2px * var(--ts)) rgba(0, 0, 0, 0.25),
+    0 0 calc(8px * var(--ts)) rgba(255, 90, 100, 0.45);
+  opacity: 1;
+}
+
+.sonar-toggle-icon .core::after {
+  background: radial-gradient(circle, var(--accent-green) 0%, rgba(55, 170, 110, 0.9) 72%);
+  box-shadow:
+    inset 0 max(0.5px, calc(1px * var(--ts))) calc(2px * var(--ts)) rgba(0, 0, 0, 0.2),
+    0 0 calc(10px * var(--ts)) rgba(125, 255, 184, 0.55);
+  opacity: 0;
+}
+
+.sonar-toggle:has(input:checked) .sonar-toggle-icon .core::before {
+  opacity: 0;
+}
+
+.sonar-toggle:has(input:checked) .sonar-toggle-icon .core::after {
+  opacity: 1;
+}
+
+.sonar-toggle-label {
+  flex: 1;
+  font-size: var(--toggle-label-size, 14px);
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: #ffffff;
+  transition: color var(--toggle-fade), text-shadow var(--toggle-fade);
+  z-index: 1;
+  line-height: 1;
+}
+
+.sonar-toggle-switch {
+  position: relative;
+  width: calc(44px * var(--ts));
+  height: calc(22px * var(--ts));
+  border-radius: 999px;
+  background: rgba(4, 14, 18, 0.75);
+  border: max(0.5px, calc(1px * var(--ts))) solid rgba(100, 125, 135, 0.35);
+  flex-shrink: 0;
+  z-index: 2;
+  transition: border-color var(--toggle-fade), background var(--toggle-fade), box-shadow var(--toggle-fade);
+}
+
+.sonar-toggle-switch::after {
+  content: '';
+  position: absolute;
+  top: calc(3px * var(--ts));
+  left: calc(3px * var(--ts));
+  width: calc(14px * var(--ts));
+  height: calc(14px * var(--ts));
+  border-radius: 50%;
+  background: rgba(130, 148, 158, 0.85);
+  box-shadow: inset 0 max(0.5px, calc(1px * var(--ts))) max(0.5px, calc(1px * var(--ts))) rgba(255, 255, 255, 0.12);
+  transition:
+    transform 0.45s cubic-bezier(0.34, 1.4, 0.64, 1),
+    background var(--toggle-fade),
+    box-shadow var(--toggle-fade);
+}
+
+.sn2-arc {
+  position: absolute;
+  right: 0;
+  top: max(0.5px, calc(1px * var(--ts)));
+  bottom: max(0.5px, calc(1px * var(--ts)));
+  height: calc(100% - 2px * var(--ts));
+  width: auto;
+  aspect-ratio: 1 / 2;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.sn2-arc::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: calc(5px * var(--ts)) solid transparent;
+  border-right-color: rgba(210, 225, 232, 0.35);
+  border-radius: 0 50% 50% 0;
+  background: transparent;
+  box-sizing: border-box;
+  box-shadow: none;
+  transition:
+    border-color var(--toggle-fade),
+    filter var(--toggle-fade),
+    box-shadow var(--toggle-fade);
+}
+
+/* Unchecked (inactive): red */
+
+.sonar-toggle:not(:has(input:checked)) .sonar-toggle-track {
+  border-color: var(--toggle-red-dim);
+  box-shadow:
+    inset 0 max(0.5px, calc(1px * var(--ts))) 0 rgba(255, 255, 255, 0.05),
+    0 0 calc(14px * var(--ts)) rgba(255, 80, 90, 0.12);
+}
+
+.sonar-toggle:not(:has(input:checked)) .sonar-toggle-switch {
+  border-color: rgba(255, 110, 120, 0.42);
+}
+
+.sonar-toggle:not(:has(input:checked)) .sn2-arc::before {
+  border-right-color: rgba(255, 130, 140, 0.55);
+}
+
+/* Unchecked + hover: light blue */
+
+.sonar-toggle:not(:has(input:checked)):hover .sonar-toggle-track {
+  border-color: rgba(94, 235, 240, 0.45);
+  background: linear-gradient(
+    180deg,
+    rgba(24, 68, 78, 0.62) 0%,
+    rgba(12, 38, 48, 0.78) 100%
+  );
+  box-shadow:
+    inset 0 max(0.5px, calc(1px * var(--ts))) 0 rgba(255, 255, 255, 0.07),
+    0 0 calc(20px * var(--ts)) rgba(94, 235, 240, 0.14);
+}
+
+.sonar-toggle:not(:has(input:checked)):hover .sn2-arc::before {
+  border-right-color: var(--text-light-blue);
+  filter: drop-shadow(0 0 calc(12px * var(--ts)) rgba(94, 235, 240, 0.85));
+}
+
+/* Checked (active): green */
+
+.sonar-toggle input:checked + .sonar-toggle-track {
+  border-color: rgba(125, 255, 184, 0.5);
+  background: linear-gradient(
+    180deg,
+    rgba(20, 62, 58, 0.65) 0%,
+    rgba(10, 36, 38, 0.8) 100%
+  );
+  box-shadow:
+    inset 0 max(0.5px, calc(1px * var(--ts))) 0 rgba(255, 255, 255, 0.07),
+    0 0 calc(22px * var(--ts)) rgba(125, 255, 184, 0.14);
+}
+
+.sonar-toggle input:checked + .sonar-toggle-track .sonar-toggle-label {
+  color: #eafff5;
+  text-shadow: 0 0 calc(12px * var(--ts)) rgba(125, 255, 184, 0.25);
+}
+
+.sonar-toggle input:checked + .sonar-toggle-track .sonar-toggle-switch {
+  border-color: rgba(125, 255, 184, 0.45);
+  background: rgba(125, 255, 184, 0.12);
+}
+
+.sonar-toggle input:checked + .sonar-toggle-track .sonar-toggle-switch::after {
+  transform: translateX(calc(22px * var(--ts)));
+  background: radial-gradient(circle, var(--accent-green) 0%, rgba(125, 255, 184, 0.5) 70%);
+  box-shadow: 0 0 calc(10px * var(--ts)) rgba(125, 255, 184, 0.7);
+}
+
+.sonar-toggle input:checked + .sonar-toggle-track .sn2-arc::before {
+  border-right-color: var(--accent-green);
+  filter: drop-shadow(0 0 calc(12px * var(--ts)) rgba(125, 255, 184, 0.85));
+}
+
+/* Checked + hover: orange */
+
+.sonar-toggle:has(input:checked):hover .sonar-toggle-track {
+  border-color: var(--toggle-orange-dim);
+  background: linear-gradient(
+    180deg,
+    rgba(58, 42, 18, 0.68) 0%,
+    rgba(32, 22, 10, 0.82) 100%
+  );
+  box-shadow:
+    inset 0 max(0.5px, calc(1px * var(--ts))) 0 rgba(255, 255, 255, 0.07),
+    0 0 calc(22px * var(--ts)) rgba(245, 166, 35, 0.2);
+}
+
+.sonar-toggle:has(input:checked):hover .sonar-toggle-track .sonar-toggle-label {
+  color: #fff5e0;
+  text-shadow: 0 0 calc(12px * var(--ts)) rgba(245, 166, 35, 0.3);
+}
+
+.sonar-toggle:has(input:checked):hover .sonar-toggle-track .sn2-arc::before {
+  border-right-color: var(--toggle-orange);
+  filter: drop-shadow(0 0 calc(14px * var(--ts)) rgba(245, 166, 35, 0.85));
+}
