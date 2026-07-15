@@ -9,6 +9,14 @@ function showPage(pageId) {
   pages.forEach((panel) => {
     panel.classList.toggle('visible', panel.dataset.page === pageId);
   });
+
+  if (window.SonarSettingsFog?.setActive) {
+    window.SonarSettingsFog.setActive(pageId === 'settings');
+  }
+
+  if (window.SonarSettingsWorldSettings?.setActive) {
+    window.SonarSettingsWorldSettings.setActive(pageId === 'settings');
+  }
 }
 
 navButtons.forEach((btn) => {
@@ -18,6 +26,9 @@ navButtons.forEach((btn) => {
 window.SonarKeybindKnapp.init();
 window.SonarSliderKnapp.init();
 window.SonarFeaturePanel.init();
+window.SonarCustomizeSettings.init();
+window.SonarSettingsFog.init();
+window.SonarSettingsWorldSettings?.init?.();
 
 document.getElementById('btnClose').addEventListener('click', () => {
   window.sonarlink.closeWindow();

@@ -286,6 +286,42 @@ function ensureModsTxt(gameWin64Dir) {
   fs.writeFileSync(modsTxtPath, `${output.join('\n')}\n`, 'utf8');
 }
 
+function getExpectedCacheZipName(dep) {
+  return `${dep.id}-${dep.version}.zip`;
+}
+
+function getCachedZipDependencies() {
+  return DEPENDENCIES.filter((dep) => dep.installType === 'extract-zip-to-game-win64');
+}
+
+function pruneStaleDependencyCache(dataRoot) {
+  if (!dataRoot) return { removed: [] };
+
+  const cacheDir = path.join(dataRoot, 'cache');
+  if (!fs.existsSync(cacheDir)) return { removed: [] };
+
+  const zipDeps = getCachedZipDependencies();
+  const keepNames = new Set(zipDeps.map(getExpectedCacheZipName));
+  const knownPrefixes = zipDeps.map((dep) => `${dep.id}-`);
+  const removed = [];
+
+  for (const name of fs.readdirSync(cacheDir)) {
+    if (!name.endsWith('.zip')) continue;
+
+    const isKnownDep = knownPrefixes.some((prefix) => name.startsWith(prefix));
+    if (!isKnownDep || keepNames.has(name)) continue;
+
+    try {
+      fs.unlinkSync(path.join(cacheDir, name));
+      removed.push(name);
+    } catch {
+      // Ignore delete failures; stale cache can be removed manually.
+    }
+  }
+
+  return { removed };
+}
+
 async function installDependency(dep, { dataRoot, gameWin64Dir, onProgress }) {
   const cacheDir = path.join(dataRoot, 'cache');
   const stagingDir = path.join(dataRoot, 'staging', dep.id);
@@ -315,6 +351,8 @@ async function installDependency(dep, { dataRoot, gameWin64Dir, onProgress }) {
     if (!verifyDependency(dep, gameWin64Dir)) {
       throw new Error(`Install verification failed: ${dep.id}`);
     }
+
+    pruneStaleDependencyCache(dataRoot);
     return;
   }
   if (dep.installType === 'copy-bundled-mod') {
@@ -379,5 +417,6 @@ module.exports = {
   verifyDependency,
   syncVerifiedInstallations,
   withInstalledVersions,
+  pruneStaleDependencyCache,
   sleep,
 };

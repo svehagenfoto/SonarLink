@@ -7,6 +7,7 @@ const DATA_FOLDER_NAME = 'SonarLink';
 const LOCATION_FILE_NAME = 'sonarlink.location';
 const BACKUP_POINTER_FILE_NAME = 'data-root.path';
 const LEGACY_CONFIG_DIR = path.join(os.homedir(), 'AppData', 'Local', 'SonarLink');
+const LEGACY_DUPLICATE_FILES = ['config.json', 'paths.json', 'commands.jsonl', 'map-telemetry.json'];
 
 function getExeDir() {
   if (app.isPackaged) {
@@ -151,10 +152,75 @@ function migrateLegacyConfig(targetRoot) {
       fs.copyFileSync(legacyCommands, commandsDest);
     }
 
+    cleanupLegacyAppDataDuplicates(targetRoot);
     return true;
   } catch {
     return false;
   }
+}
+
+function readDataRootPathsFile(dataRoot) {
+  const pathsFile = path.join(dataRoot, 'paths.json');
+  if (!fs.existsSync(pathsFile)) return null;
+
+  try {
+    return JSON.parse(fs.readFileSync(pathsFile, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+function isPathUnderDataRoot(filePath, dataRoot) {
+  if (!filePath || !dataRoot) return false;
+
+  const normalizedFile = path.normalize(filePath).toLowerCase();
+  const normalizedRoot = path.normalize(dataRoot).toLowerCase();
+  return normalizedFile === normalizedRoot || normalizedFile.startsWith(`${normalizedRoot}\\`);
+}
+
+function canRemoveLegacyDuplicate(name, dataRoot) {
+  const dataRootPath = path.join(dataRoot, name);
+  if (fs.existsSync(dataRootPath)) return true;
+
+  const bridge = readDataRootPathsFile(dataRoot);
+  if (!bridge) return false;
+
+  if (name === 'commands.jsonl') {
+    return isPathUnderDataRoot(bridge.commandsFile, dataRoot);
+  }
+
+  if (name === 'map-telemetry.json') {
+    return isPathUnderDataRoot(bridge.mapTelemetryFile, dataRoot);
+  }
+
+  return false;
+}
+
+function cleanupLegacyAppDataDuplicates(dataRoot) {
+  if (!dataRoot || !isRecoverableDataRoot(dataRoot)) {
+    return { removed: [] };
+  }
+
+  if (!fs.existsSync(path.join(dataRoot, 'config.json'))) {
+    return { removed: [] };
+  }
+
+  const removed = [];
+
+  for (const name of LEGACY_DUPLICATE_FILES) {
+    const legacyPath = path.join(LEGACY_CONFIG_DIR, name);
+    if (!fs.existsSync(legacyPath)) continue;
+    if (!canRemoveLegacyDuplicate(name, dataRoot)) continue;
+
+    try {
+      fs.unlinkSync(legacyPath);
+      removed.push(name);
+    } catch {
+      // Ignore delete failures; legacy duplicates are harmless but confusing.
+    }
+  }
+
+  return { removed };
 }
 
 function discoverKnownDataRoots() {
@@ -250,4 +316,5 @@ module.exports = {
   clearBackupPointer,
   clearAllLocationPointers,
   rememberDataRoot,
+  cleanupLegacyAppDataDuplicates,
 };

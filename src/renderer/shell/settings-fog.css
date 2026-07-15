@@ -1,0 +1,328 @@
+.page-panel[data-page="settings"] {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.page-panel[data-page="settings"] .page-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.settings-fog-page {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.settings-fog-row.customize-feature-row {
+  flex: 1;
+  min-height: 0;
+  align-items: stretch;
+  width: 100%;
+}
+
+.settings-fog-column {
+  min-height: 0;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-fog-panel {
+  flex: 1;
+  min-height: 0;
+}
+
+.settings-fog-scroll {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-right: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(94, 235, 240, 0.45) rgba(6, 24, 32, 0.6);
+}
+
+.settings-fog-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.settings-fog-scroll::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: rgba(6, 24, 32, 0.72);
+  border: 1px solid rgba(94, 235, 240, 0.12);
+}
+
+.settings-fog-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: linear-gradient(
+    180deg,
+    rgba(94, 235, 240, 0.55) 0%,
+    rgba(46, 168, 176, 0.45) 100%
+  );
+  border: 1px solid rgba(94, 235, 240, 0.28);
+}
+
+.settings-fog-world-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-fog-world-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-fog-world-row {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  grid-template-rows: auto auto auto;
+  column-gap: 10px;
+  row-gap: 6px;
+  align-items: start;
+  padding: 10px 12px 10px 10px;
+  border: 1px solid rgba(148, 168, 178, 0.22);
+  border-radius: 14px;
+  background: linear-gradient(
+    180deg,
+    rgba(22, 58, 68, 0.55) 0%,
+    rgba(10, 32, 40, 0.72) 100%
+  );
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.settings-fog-world-item.is-live .settings-fog-world-row {
+  border-color: rgba(94, 235, 240, 0.42);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 0 0 1px rgba(94, 235, 240, 0.08);
+}
+
+.settings-fog-world-icon {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  grid-column: 1;
+  grid-row: 1 / 3;
+  margin-top: 1px;
+}
+
+.settings-fog-world-icon .sn2-ring-outer,
+.settings-fog-world-icon .sn2-ring-inner,
+.settings-fog-world-icon .core {
+  position: absolute;
+  border-radius: 50%;
+}
+
+.settings-fog-world-icon .sn2-ring-outer {
+  inset: 0;
+  border: 1px solid rgba(94, 235, 240, 0.35);
+}
+
+.settings-fog-world-icon .sn2-ring-inner {
+  inset: 4px;
+  border: 1px solid rgba(94, 235, 240, 0.22);
+}
+
+.settings-fog-world-icon .core {
+  inset: 8px;
+  background: rgba(94, 235, 240, 0.75);
+}
+
+.settings-fog-world-content {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-fog-world-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.settings-fog-world-name {
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  line-height: 1.25;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-fog-world-meta {
+  color: var(--text-dim);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.settings-fog-live-badge {
+  flex-shrink: 0;
+  color: #ff5c5c;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.settings-fog-unused-badge {
+  flex-shrink: 0;
+  color: var(--text-dim);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.settings-fog-orphan-clean {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  list-style: none;
+}
+
+.settings-fog-orphan-clean-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid rgba(148, 168, 178, 0.22);
+  border-radius: 14px;
+  background: rgba(6, 24, 32, 0.72);
+}
+
+.settings-fog-orphan-clean-text {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.settings-fog-orphan-clean-btn {
+  width: 100%;
+}
+
+.settings-fog-orphan-clean.is-confirming .settings-fog-orphan-clean-confirm {
+  display: flex;
+}
+
+.settings-fog-orphan-clean.is-confirming .settings-fog-orphan-clean-row {
+  opacity: 0.55;
+}
+
+.settings-fog-orphan-clean-confirm {
+  display: none;
+}
+
+.settings-fog-delete-btn {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  width: 100%;
+  flex-shrink: 0;
+  border: 1px solid rgba(148, 168, 178, 0.22);
+  border-radius: 999px;
+  background: rgba(6, 24, 32, 0.82);
+  color: var(--accent-cyan);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 7px 12px;
+  cursor: pointer;
+  transition:
+    border-color 0.25s ease,
+    box-shadow 0.25s ease,
+    color 0.25s ease;
+}
+
+.settings-fog-delete-btn:hover {
+  border-color: rgba(94, 235, 240, 0.45);
+  box-shadow: 0 0 12px rgba(94, 235, 240, 0.12);
+}
+
+.settings-fog-delete-confirm {
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 92, 92, 0.28);
+  border-radius: 12px;
+  background: rgba(20, 8, 12, 0.72);
+}
+
+.settings-fog-world-item.is-confirming .settings-fog-delete-confirm {
+  display: flex;
+}
+
+.settings-fog-world-item.is-confirming .settings-fog-world-row {
+  opacity: 0.55;
+}
+
+.settings-fog-delete-confirm-text {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  line-height: 1.4;
+}
+
+.settings-fog-delete-confirm-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.settings-fog-confirm-btn,
+.settings-fog-cancel-btn {
+  flex: 1;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.settings-fog-confirm-btn {
+  border: 1px solid rgba(255, 92, 92, 0.45);
+  background: rgba(255, 92, 92, 0.12);
+  color: #ff8a8a;
+}
+
+.settings-fog-cancel-btn {
+  border: 1px solid rgba(148, 168, 178, 0.22);
+  background: rgba(6, 24, 32, 0.82);
+  color: var(--accent-cyan);
+}
+
+.settings-fog-empty {
+  margin: 0;
+  padding: 14px 12px;
+  color: var(--text-dim);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-align: center;
+  text-transform: uppercase;
+}

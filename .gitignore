@@ -13,3 +13,7 @@ builder-effective-config.yaml
 # Never upload
 .cursor/
 SonarLink-PROSJEKT-ARKIV.md
+
+docs/
+SonarLink-README-and-License.pdf
+scripts/export-readme-license-pdf.js

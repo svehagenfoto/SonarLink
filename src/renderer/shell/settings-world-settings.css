@@ -1,0 +1,303 @@
+.settings-world-settings-column {
+  min-height: 0;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-world-settings-panel {
+  flex: 1;
+  min-height: 0;
+}
+
+.settings-world-settings-scroll {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-right: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(94, 235, 240, 0.45) rgba(6, 24, 32, 0.6);
+}
+
+.settings-world-settings-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.settings-world-settings-scroll::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: rgba(6, 24, 32, 0.72);
+  border: 1px solid rgba(94, 235, 240, 0.12);
+}
+
+.settings-world-settings-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: linear-gradient(
+    180deg,
+    rgba(94, 235, 240, 0.55) 0%,
+    rgba(46, 168, 176, 0.45) 100%
+  );
+  border: 1px solid rgba(94, 235, 240, 0.28);
+}
+
+.settings-world-settings-world-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-world-settings-world-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-world-settings-world-row {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  grid-template-rows: auto auto auto;
+  column-gap: 10px;
+  row-gap: 6px;
+  align-items: start;
+  padding: 10px 12px 10px 10px;
+  border: 1px solid rgba(148, 168, 178, 0.22);
+  border-radius: 14px;
+  background: linear-gradient(
+    180deg,
+    rgba(22, 58, 68, 0.55) 0%,
+    rgba(10, 32, 40, 0.72) 100%
+  );
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.settings-world-settings-world-item.is-live .settings-world-settings-world-row {
+  border-color: rgba(94, 235, 240, 0.42);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 0 0 1px rgba(94, 235, 240, 0.08);
+}
+
+.settings-world-settings-world-icon {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  grid-column: 1;
+  grid-row: 1 / 3;
+  margin-top: 1px;
+}
+
+.settings-world-settings-world-icon .sn2-ring-outer,
+.settings-world-settings-world-icon .sn2-ring-inner,
+.settings-world-settings-world-icon .core {
+  position: absolute;
+  border-radius: 50%;
+}
+
+.settings-world-settings-world-icon .sn2-ring-outer {
+  inset: 0;
+  border: 1px solid rgba(94, 235, 240, 0.35);
+}
+
+.settings-world-settings-world-icon .sn2-ring-inner {
+  inset: 4px;
+  border: 1px solid rgba(94, 235, 240, 0.22);
+}
+
+.settings-world-settings-world-icon .core {
+  inset: 8px;
+  background: rgba(94, 235, 240, 0.75);
+}
+
+.settings-world-settings-world-content {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-world-settings-world-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.settings-world-settings-world-name {
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  line-height: 1.25;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-world-settings-world-meta {
+  color: var(--text-dim);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.settings-world-settings-live-badge {
+  flex-shrink: 0;
+  color: #ff5c5c;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.settings-world-settings-unused-badge {
+  flex-shrink: 0;
+  color: var(--text-dim);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.settings-world-settings-orphan-clean {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  list-style: none;
+}
+
+.settings-world-settings-orphan-clean-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid rgba(148, 168, 178, 0.22);
+  border-radius: 14px;
+  background: rgba(6, 24, 32, 0.72);
+}
+
+.settings-world-settings-orphan-clean-text {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.settings-world-settings-orphan-clean-btn {
+  width: 100%;
+}
+
+.settings-world-settings-orphan-clean.is-confirming .settings-world-settings-orphan-clean-confirm {
+  display: flex;
+}
+
+.settings-world-settings-orphan-clean.is-confirming .settings-world-settings-orphan-clean-row {
+  opacity: 0.55;
+}
+
+.settings-world-settings-orphan-clean-confirm {
+  display: none;
+}
+
+.settings-world-settings-delete-btn {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  width: 100%;
+  flex-shrink: 0;
+  border: 1px solid rgba(148, 168, 178, 0.22);
+  border-radius: 999px;
+  background: rgba(6, 24, 32, 0.82);
+  color: var(--accent-cyan);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 7px 12px;
+  cursor: pointer;
+  transition:
+    border-color 0.25s ease,
+    box-shadow 0.25s ease,
+    color 0.25s ease;
+}
+
+.settings-world-settings-delete-btn:hover {
+  border-color: rgba(94, 235, 240, 0.45);
+  box-shadow: 0 0 12px rgba(94, 235, 240, 0.12);
+}
+
+.settings-world-settings-delete-confirm {
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 92, 92, 0.28);
+  border-radius: 12px;
+  background: rgba(20, 8, 12, 0.72);
+}
+
+.settings-world-settings-world-item.is-confirming .settings-world-settings-delete-confirm {
+  display: flex;
+}
+
+.settings-world-settings-world-item.is-confirming .settings-world-settings-world-row {
+  opacity: 0.55;
+}
+
+.settings-world-settings-delete-confirm-text {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  line-height: 1.4;
+}
+
+.settings-world-settings-delete-confirm-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.settings-world-settings-confirm-btn,
+.settings-world-settings-cancel-btn {
+  flex: 1;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.settings-world-settings-confirm-btn {
+  border: 1px solid rgba(255, 92, 92, 0.45);
+  background: rgba(255, 92, 92, 0.12);
+  color: #ff8a8a;
+}
+
+.settings-world-settings-cancel-btn {
+  border: 1px solid rgba(148, 168, 178, 0.22);
+  background: rgba(6, 24, 32, 0.82);
+  color: var(--accent-cyan);
+}
+
+.settings-world-settings-empty {
+  margin: 0;
+  padding: 14px 12px;
+  color: var(--text-dim);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-align: center;
+  text-transform: uppercase;
+  list-style: none;
+}

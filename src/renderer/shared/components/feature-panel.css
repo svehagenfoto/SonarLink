@@ -160,6 +160,11 @@
   pointer-events: none;
 }
 
+.sonar-toggle.keybind-knapp.is-control-disabled {
+  pointer-events: none;
+  opacity: 0.45;
+}
+
 /* 3rd person active — keybind on state (does not affect enable toggle) */
 
 .sonar-toggle.keybind-knapp.is-third-person-active[data-state="bound"] .sonar-toggle-track {

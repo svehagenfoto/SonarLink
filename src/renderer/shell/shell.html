@@ -11,6 +11,8 @@
   <link rel="stylesheet" href="../shared/components/slider-knapp.css" />
   <link rel="stylesheet" href="../shared/components/feature-panel.css" />
   <link rel="stylesheet" href="credits-page.css" />
+  <link rel="stylesheet" href="settings-fog.css" />
+  <link rel="stylesheet" href="settings-world-settings.css" />
   <style>
     html, body {
       width: 100%;
@@ -172,6 +174,81 @@
                       </div>
                     </div>
                   </div>
+
+                  <div class="feature-panel is-expanded" id="toggleMapPanel" data-feature="toggle-map">
+                    <label class="sonar-toggle toggle-knapp">
+                      <input type="checkbox" class="feature-panel-enable" id="toggleMapEnable" checked />
+                      <span class="sonar-toggle-track">
+                        <span class="sonar-toggle-icon">
+                          <span class="sn2-ring-outer" aria-hidden="true"></span>
+                          <span class="sn2-ring-inner" aria-hidden="true"></span>
+                          <span class="core" aria-hidden="true"></span>
+                        </span>
+                        <span class="sonar-toggle-label">Toggle map</span>
+                        <span class="sonar-toggle-switch" aria-hidden="true"></span>
+                        <span class="sn2-arc" aria-hidden="true"></span>
+                      </span>
+                    </label>
+
+                    <div class="feature-panel-expand">
+                      <div class="feature-panel-expand-inner">
+                        <div class="feature-panel-reveal">
+                          <div
+                            class="sonar-slider slider-knapp feature-panel-size"
+                            id="toggleMapSize"
+                            data-value="50"
+                          >
+                            <div class="sonar-slider-track">
+                              <span class="sonar-slider-icon" aria-hidden="true">
+                                <span class="sn2-ring-outer"></span>
+                                <span class="sn2-ring-inner"></span>
+                                <span class="core"></span>
+                              </span>
+                              <span class="sonar-slider-label">Minimap size</span>
+                              <div
+                                class="sonar-slider-rail"
+                                role="slider"
+                                tabindex="0"
+                                aria-valuemin="1"
+                                aria-valuemax="99"
+                                aria-valuenow="50"
+                                aria-label="Minimap size"
+                              >
+                                <div class="sonar-slider-fill"></div>
+                                <button type="button" class="sonar-slider-thumb" aria-label="Slider value">
+                                  <span class="sonar-slider-value">50</span>
+                                </button>
+                              </div>
+                              <span class="sn2-arc" aria-hidden="true"></span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="feature-panel-reveal">
+                          <div
+                            class="sonar-toggle keybind-knapp feature-panel-keybind"
+                            id="toggleMapKeybind"
+                            role="button"
+                            tabindex="0"
+                            data-state="unbound"
+                          >
+                            <span class="sonar-toggle-track">
+                              <span class="sonar-toggle-icon">
+                                <span class="sn2-ring-outer" aria-hidden="true"></span>
+                                <span class="sn2-ring-inner" aria-hidden="true"></span>
+                                <span class="core" aria-hidden="true"></span>
+                              </span>
+                              <span class="sonar-toggle-label">World map bind</span>
+                              <span class="keybind-slot" aria-live="polite">
+                                <span class="keybind-slot-text">NONE</span>
+                              </span>
+                              <span class="sn2-arc" aria-hidden="true"></span>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -303,8 +380,27 @@
         </section>
 
         <section class="page-panel" data-page="settings">
-          <div class="page-body">
-            <p>Application settings will appear here.</p>
+          <div class="page-body settings-fog-page">
+            <div class="customize-feature-row settings-fog-row">
+              <div class="feature-column settings-fog-column">
+                <div class="feature-panel settings-fog-panel" id="settingsFogPanel" aria-label="Fog maps">
+                  <div class="settings-fog-scroll" id="settingsFogScroll">
+                    <ul class="settings-fog-world-list" id="settingsFogList"></ul>
+                  </div>
+                </div>
+              </div>
+              <div class="feature-column settings-world-settings-column">
+                <div
+                  class="feature-panel settings-world-settings-panel"
+                  id="settingsWorldSettingsPanel"
+                  aria-label="World settings"
+                >
+                  <div class="settings-world-settings-scroll" id="settingsWorldSettingsScroll">
+                    <ul class="settings-world-settings-world-list" id="settingsWorldSettingsList"></ul>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
       </div>
@@ -410,6 +506,9 @@
   <script src="../shared/components/keybind-knapp.js"></script>
   <script src="../shared/components/slider-knapp.js"></script>
   <script src="../shared/components/feature-panel.js"></script>
+  <script src="customize-settings.js"></script>
+  <script src="settings-fog.js"></script>
+  <script src="settings-world-settings.js"></script>
   <script src="shell.js"></script>
 </body>
 </html>

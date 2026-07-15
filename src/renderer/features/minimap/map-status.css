@@ -1,0 +1,57 @@
+.sonar-map-status {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 0;
+  padding: 5px 10px;
+  box-sizing: border-box;
+  border: 1px solid rgba(94, 235, 240, 0.28);
+  border-radius: 4px;
+  background: rgba(6, 24, 32, 0.82);
+  color: #5eebf0;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.3;
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+[data-save-pending="true"] .sonar-map-status {
+  display: flex;
+}
+
+.sonar-map-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #5eebf0;
+  flex-shrink: 0;
+  animation: sonar-map-status-pulse 1.2s ease-in-out infinite;
+}
+
+.sonar-map-status--settings {
+  border-color: rgba(245, 166, 35, 0.35);
+  color: #f5a623;
+}
+
+.sonar-map-status--settings .sonar-map-status-dot {
+  background: #f5a623;
+}
+
+@keyframes sonar-map-status-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.85);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

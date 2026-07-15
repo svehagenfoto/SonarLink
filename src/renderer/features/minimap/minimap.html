@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SonarLink Minimap</title>
+  <link rel="stylesheet" href="map-status.css" />
+  <link rel="stylesheet" href="minimap.css" />
+  <style>
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      overflow: hidden;
+      display: flex;
+      align-items: flex-start;
+      justify-content: flex-end;
+      padding: 8px;
+      box-sizing: border-box;
+    }
+  </style>
+</head>
+<body>
+  <aside class="sonar-minimap" id="sonarMinimap" data-state="empty" aria-label="Minimap">
+    <div class="sonar-minimap-stack">
+      <div class="sonar-minimap-circle-wrap">
+        <div class="sonar-minimap-frame">
+          <div class="sonar-minimap-core">
+          <div class="sonar-minimap-idle-layer" aria-hidden="true">
+            <img class="sonar-minimap-idle-image" alt="" draggable="false" decoding="async" />
+          </div>
+          <div class="sonar-minimap-map-layer" aria-hidden="true">
+            <img class="sonar-minimap-map-image" alt="" draggable="false" decoding="async" />
+          </div>
+          <svg class="sonar-minimap-player-arrow" viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              class="sonar-minimap-player-arrow-shape"
+              d="M12 2.5 L20.5 18.25 L15.4 18.25 L12 22.75 L8.6 18.25 L3.5 18.25 Z"
+            />
+          </svg>
+          </div>
+        </div>
+      </div>
+      <p class="sonar-map-status" role="status" aria-live="polite">
+        <span class="sonar-map-status-dot" aria-hidden="true"></span>
+        <span class="sonar-map-status-text">Loading world and map</span>
+      </p>
+      <p class="sonar-map-status sonar-map-status--settings" role="status" aria-live="polite">
+        <span class="sonar-map-status-dot" aria-hidden="true"></span>
+        <span class="sonar-map-status-text">Loading settings</span>
+      </p>
+    </div>
+  </aside>
+  <script src="map-save-pending.js"></script>
+  <script src="map-projection.js"></script>
+  <script src="map-view.js"></script>
+  <script src="map-smooth.js"></script>
+  <script src="map-fog.js"></script>
+  <script src="minimap.js"></script>
+  <script>
+    window.SonarMinimap.init();
+  </script>
+</body>
+</html>

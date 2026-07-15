@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SonarLink World Map</title>
+  <link rel="stylesheet" href="../minimap/map-status.css" />
+  <link rel="stylesheet" href="big-map.css" />
+</head>
+<body>
+  <div class="sonar-big-map-panel ocean-bg">
+    <header class="sonar-big-map-header">
+      <h1 class="sonar-big-map-title title-sonarlink">World Map</h1>
+    </header>
+    <div class="sonar-big-map-body">
+      <div class="sonar-big-map-viewport" id="bigMapViewport" data-state="empty" data-save-pending="false" aria-label="World map">
+        <div class="sonar-big-map-map-layer" id="bigMapLayer">
+          <img class="sonar-big-map-map-image" id="bigMapImage" alt="" draggable="false" decoding="async" />
+        </div>
+        <p class="sonar-map-status sonar-big-map-status" role="status" aria-live="polite">
+          <span class="sonar-map-status-dot" aria-hidden="true"></span>
+          <span class="sonar-map-status-text">Loading world and map</span>
+        </p>
+        <svg class="sonar-big-map-player-arrow" id="bigMapPlayerArrow" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            class="sonar-big-map-player-arrow-shape"
+            d="M12 2.5 L20.5 18.25 L15.4 18.25 L12 22.75 L8.6 18.25 L3.5 18.25 Z"
+          />
+        </svg>
+      </div>
+    </div>
+  </div>
+  <script src="../minimap/map-projection.js"></script>
+  <script src="../minimap/map-view.js"></script>
+  <script src="../minimap/map-fog.js"></script>
+  <script src="../minimap/map-save-pending.js"></script>
+  <script src="map-navigation.js"></script>
+  <script src="big-map.js"></script>
+  <script>
+    window.SonarBigMap.init();
+  </script>
+</body>
+</html>

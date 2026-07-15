@@ -5,7 +5,7 @@ local UEHelpers = require("UEHelpers")
 
 local ThirdPersonCamera = {}
 
-local VERSION = "1.9.6"
+local VERSION = "1.9.7"
 
 local THIRD_PERSON_ENABLED = false
 local CAMERA_DISTANCE_PERCENT = 50
@@ -13,9 +13,22 @@ local LAST_APPLIED_PERCENT = nil
 local LAST_APPLIED_IN_VEHICLE = nil
 local WAS_IN_VEHICLE = false
 local SMOOTH_TOKEN = 0
+local suspendedUntil = 0
+local SUSPEND_AFTER_RESTART_S = 4.0
 
 local SMOOTH_STEP_MS = 50
 local SMOOTH_STEPS = 11
+
+local function suspendFor(seconds)
+  local untilAt = os.clock() + seconds
+  if untilAt > suspendedUntil then
+    suspendedUntil = untilAt
+  end
+end
+
+function ThirdPersonCamera.isSuspended()
+  return os.clock() < suspendedUntil
+end
 
 local function sendConsoleCommand(cmd)
   local lib = UEHelpers.GetKismetSystemLibrary()
@@ -162,7 +175,7 @@ local function finishDistanceApply(percent, inVehicle, targetOffset)
 end
 
 local function applyCameraDistanceInstant(percent)
-  if not THIRD_PERSON_ENABLED then return false end
+  if not THIRD_PERSON_ENABLED or ThirdPersonCamera.isSuspended() then return false end
 
   local ctx = getPlayerContext()
   if not ctx then return false end
@@ -181,7 +194,7 @@ local function applyCameraDistanceInstant(percent)
 end
 
 local function applyCameraDistanceSmooth(percent)
-  if not THIRD_PERSON_ENABLED then return false end
+  if not THIRD_PERSON_ENABLED or ThirdPersonCamera.isSuspended() then return false end
 
   local ctx = getPlayerContext()
   if not ctx then return false end
@@ -234,6 +247,7 @@ end
 
 local function applyThirdPerson(desired, force)
   if not ThirdPersonCamera.isPlayerReady() then return end
+  if ThirdPersonCamera.isSuspended() then return end
 
   if force then
     local actual = readThirdPersonFromGame()
@@ -266,7 +280,7 @@ function ThirdPersonCamera.shouldWatchVehicle()
 end
 
 function ThirdPersonCamera.checkVehicleStateChange()
-  if not THIRD_PERSON_ENABLED then return false end
+  if not THIRD_PERSON_ENABLED or ThirdPersonCamera.isSuspended() then return false end
 
   local ctx = getPlayerContext()
   if not ctx then return false end
@@ -303,6 +317,8 @@ function ThirdPersonCamera.handleDistanceLine(line)
 end
 
 function ThirdPersonCamera.onPawnRestart()
+  suspendFor(SUSPEND_AFTER_RESTART_S)
+  cancelSmoothCamera()
   LAST_APPLIED_PERCENT = nil
   LAST_APPLIED_IN_VEHICLE = nil
 

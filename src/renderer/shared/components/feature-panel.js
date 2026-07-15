@@ -57,6 +57,16 @@ function setKeybindThirdPersonActive(keybind, active) {
   keybind.classList.toggle('is-third-person-active', Boolean(active));
 }
 
+function setKeybindControlEnabled(keybind, enabled) {
+  if (!keybind) return;
+  keybind.classList.toggle('is-control-disabled', !enabled);
+  keybind.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+  if (!enabled && keybind.keybindKnapp?.state === 'listening') {
+    keybind.keybindKnapp.stopListening();
+    keybind.keybindKnapp.setState(keybind.keybindKnapp.boundKey ? 'bound' : 'unbound');
+  }
+}
+
 function initFeaturePanels(root = document) {
   root.querySelectorAll('.feature-panel').forEach((panel) => {
     if (panel.featurePanelInit) return;
@@ -65,16 +75,24 @@ function initFeaturePanels(root = document) {
     const toggleInput = panel.querySelector('.feature-panel-enable');
     const keybind = panel.querySelector('.feature-panel-keybind');
     const distanceSlider = panel.querySelector('.feature-panel-distance');
-    const isThirdPerson = panel.dataset.feature === 'third-person';
+    const sizeSlider = panel.querySelector('.feature-panel-size');
+    const featureId = panel.dataset.feature;
 
     if (!toggleInput) return;
 
-    const syncExpanded = () => {
+    const syncExpanded = ({ notifyBackend = true } = {}) => {
       const expanded = toggleInput.checked;
       panel.classList.toggle('is-expanded', expanded);
 
-      if (isThirdPerson && window.sonarlink?.setThirdPersonEnabled) {
+      if (featureId === 'third-person' && window.sonarlink?.setThirdPersonEnabled && notifyBackend) {
         window.sonarlink.setThirdPersonEnabled(expanded);
+      }
+
+      if (featureId === 'toggle-map') {
+        if (notifyBackend && window.sonarlink?.setMinimapEnabled) {
+          window.sonarlink.setMinimapEnabled(expanded);
+        }
+        setKeybindControlEnabled(keybind, expanded);
       }
 
       if (expanded) {
@@ -83,12 +101,15 @@ function initFeaturePanels(root = document) {
       }
 
       resetReveals(panel);
+      if (featureId === 'toggle-map') {
+        setKeybindControlEnabled(keybind, false);
+      }
     };
 
     toggleInput.addEventListener('change', syncExpanded);
     watchPageVisibility(panel);
 
-    if (keybind && isThirdPerson) {
+    if (keybind && featureId === 'third-person') {
       keybind.addEventListener('sonar-keybind-change', (event) => {
         const { state, key } = event.detail || {};
         if (!window.sonarlink?.setThirdPersonBind) return;
@@ -121,6 +142,11 @@ function initFeaturePanels(root = document) {
         });
       }
 
+      if (window.sonarlink?.getCustomizeProfile) {
+        syncExpanded({ notifyBackend: false });
+        return;
+      }
+
       if (window.sonarlink?.getThirdPersonState) {
         window.sonarlink.getThirdPersonState().then((state) => {
           toggleInput.checked = Boolean(state?.featureEnabled);
@@ -132,6 +158,58 @@ function initFeaturePanels(root = document) {
         });
       } else {
         syncExpanded();
+      }
+      return;
+    }
+
+    if (featureId === 'toggle-map') {
+      if (sizeSlider) {
+        sizeSlider.addEventListener('sliderinput', (event) => {
+          const value = event.detail?.value;
+          if (value == null || !window.sonarlink?.setMinimapSize) return;
+          window.sonarlink.setMinimapSize(value, { preview: true });
+        });
+        sizeSlider.addEventListener('slidercommit', (event) => {
+          const value = event.detail?.value;
+          if (value == null || !window.sonarlink?.setMinimapSize) return;
+          window.sonarlink.setMinimapSize(value, { preview: false });
+        });
+      }
+
+      if (keybind) {
+        keybind.addEventListener('sonar-keybind-change', (event) => {
+          if (!toggleInput.checked) return;
+          const { state, key } = event.detail || {};
+          if (!window.sonarlink?.setMinimapMapBind) return;
+          if (state === 'bound' && key) {
+            window.sonarlink.setMinimapMapBind(key);
+            return;
+          }
+          if (state === 'unbound') {
+            window.sonarlink.setMinimapMapBind(null);
+          }
+        });
+      }
+
+      if (window.sonarlink?.getCustomizeProfile) {
+        syncExpanded({ notifyBackend: false });
+        return;
+      }
+
+      if (window.sonarlink?.getMinimapSettings) {
+        window.sonarlink.getMinimapSettings().then((settings) => {
+          toggleInput.checked = settings?.enabled !== false;
+          syncExpanded({ notifyBackend: false });
+          if (sizeSlider?.sliderKnapp && settings?.mapSizePercent != null) {
+            sizeSlider.sliderKnapp.setValue(settings.mapSizePercent, false);
+          }
+          if (settings?.mapBindKey && keybind?.keybindKnapp) {
+            keybind.keybindKnapp.boundKey = settings.mapBindKey;
+            keybind.keybindKnapp.setState('bound');
+          }
+        });
+      } else {
+        syncExpanded({ notifyBackend: false });
       }
       return;
     }

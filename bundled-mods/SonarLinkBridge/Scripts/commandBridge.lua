@@ -3,7 +3,7 @@
 local CommandBridge = {}
 
 local COMMANDS_FILE = nil
-local LAST_SIZE = 0
+local LAST_SIGNATURE = nil
 local MOD_DIR = debug.getinfo(1, "S").source:match("@?(.*[\\/])") or ""
 
 local function getPathsJsonPath()
@@ -76,20 +76,53 @@ function CommandBridge.readLatestCommands()
   return latest
 end
 
+local function signaturePartThirdPerson(line)
+  if not line then return nil end
+  local enabled = line:find('"enabled"%s*:%s*true') and "1" or "0"
+  local force = line:find('"force"%s*:%s*true') and "1" or "0"
+  return "tp:" .. enabled .. ":" .. force
+end
+
+local function signaturePartDistance(line)
+  if not line then return nil end
+  local percent = line:match('"percent"%s*:%s*(%d+)') or "?"
+  local smooth = line:find('"smooth"%s*:%s*true') and "1" or "0"
+  return "dist:" .. percent .. ":" .. smooth
+end
+
+local function buildCommandSignature(commands)
+  local parts = {}
+
+  local thirdPerson = signaturePartThirdPerson(commands.thirdPerson)
+  if thirdPerson then
+    parts[#parts + 1] = thirdPerson
+  end
+
+  local distance = signaturePartDistance(commands.thirdPersonDistance)
+  if distance then
+    parts[#parts + 1] = distance
+  end
+
+  if #parts == 0 then
+    return ""
+  end
+
+  return table.concat(parts, "|")
+end
+
 function CommandBridge.hasNewCommands(force)
-  local filePath = CommandBridge.getCommandsFile()
-  if not filePath then return false end
+  if force then
+    return true
+  end
 
-  local probe = io.open(filePath, "r")
-  if not probe then return false end
-  local size = probe:seek("end")
-  probe:close()
+  local commands = CommandBridge.readLatestCommands()
+  local signature = buildCommandSignature(commands)
 
-  if not force and size == LAST_SIZE then
+  if LAST_SIGNATURE ~= nil and signature == LAST_SIGNATURE then
     return false
   end
 
-  LAST_SIZE = size
+  LAST_SIGNATURE = signature
   return true
 end
 

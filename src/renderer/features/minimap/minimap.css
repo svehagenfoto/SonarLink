@@ -1,0 +1,140 @@
+/* SonarLink minimap — rotating map + fixed player arrow */
+
+:root {
+  --minimap-size: 168px;
+  --minimap-ring: 3px;
+  --minimap-ring-color: rgba(94, 235, 240, 0.28);
+  --minimap-core-color: #0a1e26;
+  --minimap-arrow-fill: #5eebf0;
+  --minimap-arrow-stroke: #061820;
+}
+
+.sonar-minimap {
+  width: auto;
+  pointer-events: none;
+}
+
+.sonar-minimap-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.sonar-minimap-circle-wrap {
+  width: var(--minimap-size);
+  height: var(--minimap-size);
+  flex-shrink: 0;
+}
+
+.sonar-minimap-frame {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  border-radius: 50%;
+  padding: var(--minimap-ring);
+  background: var(--minimap-ring-color);
+  box-shadow: none;
+}
+
+.sonar-minimap-frame::before {
+  content: '';
+  position: absolute;
+  inset: var(--minimap-ring);
+  border-radius: 50%;
+  border: 1px solid rgba(94, 235, 240, 0.22);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.sonar-minimap-core {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--minimap-core-color);
+  box-shadow: none;
+}
+
+.sonar-minimap-idle-layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sonar-minimap-idle-image {
+  width: 72%;
+  height: 72%;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.sonar-minimap-map-layer {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 50%;
+}
+
+.sonar-minimap:not([data-state="live"]) .sonar-minimap-map-layer {
+  display: none;
+}
+
+.sonar-minimap:not([data-state="live"]) .sonar-minimap-player-arrow {
+  opacity: 0;
+}
+
+.sonar-minimap-map-image {
+  position: absolute;
+  display: block;
+  max-width: none;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  z-index: 1;
+}
+
+.sonar-minimap-fog-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.sonar-minimap-player-arrow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 20px;
+  height: 20px;
+  margin-left: -10px;
+  margin-top: -10px;
+  z-index: 3;
+  opacity: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.sonar-minimap[data-state="live"] .sonar-minimap-idle-layer {
+  display: none;
+}
+
+.sonar-minimap[data-state="live"] .sonar-minimap-player-arrow {
+  opacity: 1;
+}
+
+.sonar-minimap-player-arrow-shape {
+  fill: var(--minimap-arrow-fill);
+  stroke: var(--minimap-arrow-stroke);
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}

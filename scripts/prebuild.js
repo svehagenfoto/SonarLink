@@ -5,6 +5,12 @@ const { execSync } = require('child_process');
 const root = path.join(__dirname, '..');
 const pkg = require(path.join(root, 'package.json'));
 const nextExe = `SonarLink-${pkg.version}.exe`;
+const mapAsset = path.join(root, 'Assets', 'sn2map', 'sn2-v0.1.png');
+
+if (!fs.existsSync(mapAsset)) {
+  console.error('Missing map asset for build: Assets/sn2map/sn2-v0.1.png');
+  process.exit(1);
+}
 
 try {
   execSync(

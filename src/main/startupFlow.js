@@ -16,13 +16,15 @@ const {
   repairDependencies,
   syncVerifiedInstallations,
   withInstalledVersions,
+  pruneStaleDependencyCache,
   sleep,
 } = require('./dependencyManager');
 const { isSubnauticaRunning } = require('./processWatch');
 const { getCommandsFile } = require('./gameBridge');
-const { isDataRootValid } = require('./dataRoot');
+const { isDataRootValid, cleanupLegacyAppDataDuplicates } = require('./dataRoot');
 
 const INSTALL_RETRY_LIMIT = 3;
+const STARTUP_LOG_MAX_LINES = 50;
 const INSTALL_RETRY_DELAY_MS = 3000;
 
 let folderResolver = null;
@@ -60,7 +62,21 @@ function writeStartupLog(message) {
     if (!dataRoot) return;
     const logPath = path.join(dataRoot, 'logs', 'startup.log');
     fs.mkdirSync(path.dirname(logPath), { recursive: true });
-    fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${message}\n`, 'utf8');
+
+    const line = `[${new Date().toISOString()}] ${message}`;
+    let lines = [];
+
+    if (fs.existsSync(logPath)) {
+      const content = fs.readFileSync(logPath, 'utf8');
+      lines = content.split(/\r?\n/).filter(Boolean);
+    }
+
+    lines.push(line);
+    if (lines.length > STARTUP_LOG_MAX_LINES) {
+      lines = lines.slice(-STARTUP_LOG_MAX_LINES);
+    }
+
+    fs.writeFileSync(logPath, `${lines.join('\n')}\n`, 'utf8');
   } catch {
     /* ignore */
   }
@@ -376,7 +392,10 @@ async function runStartupFlow(startupWindow) {
     throw new Error('INSTALL_FAILED:Required files are still missing after install');
   }
 
+  pruneStaleDependencyCache(activeDataRootPath);
+
   writePathsBridge(gameWin64Dir);
+  cleanupLegacyAppDataDuplicates(activeDataRootPath);
 
   const gameReady = await isSubnauticaRunning();
 
@@ -402,6 +421,7 @@ function writePathsBridge(gameWin64Dir) {
     dataRoot,
     gameWin64Dir,
     commandsFile: getCommandsFile(),
+    mapTelemetryFile: path.join(dataRoot, 'map-telemetry.json'),
   };
 
   fs.writeFileSync(path.join(dataRoot, 'paths.json'), JSON.stringify(bridge, null, 2), 'utf8');

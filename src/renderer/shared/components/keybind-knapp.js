@@ -137,7 +137,7 @@ class KeybindKnapp {
     this.stopListening();
   }
 
-  setState(state) {
+  setState(state, { silent = false } = {}) {
     this.state = state;
     this.element.setAttribute('data-state', state);
 
@@ -148,10 +148,12 @@ class KeybindKnapp {
     if (state === 'unbound') {
       this.slotText.textContent = 'NONE';
       this.element.removeAttribute('data-key');
-      this.element.dispatchEvent(new CustomEvent('sonar-keybind-change', {
-        bubbles: true,
-        detail: { state, key: null },
-      }));
+      if (!silent) {
+        this.element.dispatchEvent(new CustomEvent('sonar-keybind-change', {
+          bubbles: true,
+          detail: { state, key: null },
+        }));
+      }
       return;
     }
 
@@ -162,10 +164,12 @@ class KeybindKnapp {
 
     this.slotText.textContent = this.boundKey;
     this.element.setAttribute('data-key', this.boundKey);
-    this.element.dispatchEvent(new CustomEvent('sonar-keybind-change', {
-      bubbles: true,
-      detail: { state, key: this.boundKey },
-    }));
+    if (!silent) {
+      this.element.dispatchEvent(new CustomEvent('sonar-keybind-change', {
+        bubbles: true,
+        detail: { state, key: this.boundKey },
+      }));
+    }
   }
 }
 

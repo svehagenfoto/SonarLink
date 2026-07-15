@@ -31,9 +31,25 @@ function assetPath(name) {
   return path.join(getGeneratedAssetsDir(), name);
 }
 
+function mapImagePath() {
+  const devPath = path.join(getAppContentRoot(), 'Assets', 'sn2map', 'sn2-v0.1.png');
+  if (fs.existsSync(devPath)) return devPath;
+
+  return path.join(process.resourcesPath, 'sn2map', 'sn2-v0.1.png');
+}
+
+function sonarLinkImagePath() {
+  const masterPath = path.join(getAppContentRoot(), 'Assets', 'SonarLink.png');
+  if (fs.existsSync(masterPath)) return masterPath;
+
+  return assetPath('logo-256.png');
+}
+
 module.exports = {
   getProjectRoot,
   getAppContentRoot,
   getGeneratedAssetsDir,
   assetPath,
+  mapImagePath,
+  sonarLinkImagePath,
 };

@@ -32,6 +32,20 @@ foreach ($n in $names) {
 exit 1
 `;
 
+const PS_GET_HANDLE = `
+$names = @(${PROCESS_NAMES.map((n) => `'${n}'`).join(',')})
+foreach ($n in $names) {
+  $p = Get-Process -Name $n -ErrorAction SilentlyContinue |
+    Where-Object { $_.MainWindowHandle -ne 0 } |
+    Select-Object -First 1
+  if ($p) {
+    Write-Output $p.MainWindowHandle.ToInt64()
+    exit 0
+  }
+}
+exit 1
+`;
+
 function getGameWindowBounds() {
   return new Promise((resolve) => {
     execFile(
@@ -55,6 +69,31 @@ function getGameWindowBounds() {
   });
 }
 
+function getGameWindowHandle() {
+  return new Promise((resolve) => {
+    execFile(
+      'powershell.exe',
+      ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', PS_GET_HANDLE],
+      { windowsHide: true },
+      (err, stdout) => {
+        if (err || !stdout.trim()) {
+          resolve(null);
+          return;
+        }
+
+        const handle = Number(stdout.trim());
+        if (!Number.isFinite(handle) || handle <= 0) {
+          resolve(null);
+          return;
+        }
+
+        resolve(handle);
+      }
+    );
+  });
+}
+
 module.exports = {
   getGameWindowBounds,
+  getGameWindowHandle,
 };

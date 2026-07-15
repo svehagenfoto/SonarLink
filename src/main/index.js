@@ -1,5 +1,7 @@
 const { app, ipcMain, BrowserWindow, globalShortcut, shell } = require('electron');
 const path = require('path');
+const { pathToFileURL } = require('url');
+const fs = require('fs');
 const { spawn } = require('child_process');
 const { isSubnauticaRunning, watchSubnautica } = require('./processWatch');
 const windows = require('./windowManager');
@@ -8,9 +10,14 @@ const {
   unregisterAllHotkeys,
   registerThirdPersonMouseBind,
   unregisterThirdPersonHotkey,
+  registerHomeHotkey,
+  unregisterHomeHotkey,
   registerHomeKeyPoll,
   unregisterHomeKeyPoll,
   registerThirdPersonHotkey,
+  registerBigMapHotkey,
+  registerBigMapMouseBind,
+  unregisterBigMapBind,
 } = require('./win32');
 const {
   runStartupFlow,
@@ -18,9 +25,19 @@ const {
   openDataFolderDialog,
 } = require('./startupFlow');
 const { resetAllForTesting } = require('./resetManager');
-const { setThirdPersonEnabled, setThirdPersonDistance } = require('./gameBridge');
+const { pruneElectronChromiumCache } = require('./electronCacheCleanup');
+const { registerCrashDiagnostics } = require('./crashLog');
+const { setThirdPersonEnabled, setThirdPersonDistance, compactCommandsFile } = require('./gameBridge');
 const { parseKeyLabel, keyLabelToAccelerator } = require('./keybindParse');
-const devTemp = require('./devTempShortcuts');
+const { mapImagePath, sonarLinkImagePath } = require('./paths');
+const mapTelemetry = require('./mapTelemetry');
+const mapFogStore = require('./mapFogStore');
+const mapFogSession = require('./mapFogSession');
+const saveDiscovery = require('./saveDiscovery');
+const worldSettingsSession = require('./worldSettingsSession');
+const worldSettingsStore = require('./worldSettingsStore');
+
+registerCrashDiagnostics(app);
 
 let stopWatch = null;
 let quitOnGameCloseWatch = null;
@@ -34,7 +51,13 @@ let thirdPersonCameraActive = true;
 let thirdPersonCameraDistance = 50;
 let thirdPersonSyncTimers = [];
 let thirdPersonShortcutKey = null;
+let thirdPersonBindKey = null;
 let thirdPersonDistancePreviewTimer = null;
+let minimapEnabled = true;
+let minimapMapBindKey = null;
+let bigMapShortcutKey = null;
+let bigMapToggleLocked = false;
+let mainUiReady = false;
 const THIRD_PERSON_DISTANCE_PREVIEW_MS = 125;
 const SHELL_OPEN_DELAY_MS = 10000;
 
@@ -110,6 +133,7 @@ function pushThirdPersonStateToGame(force = false) {
 
 function scheduleThirdPersonSync() {
   stopThirdPersonSync();
+  compactCommandsFile();
   pushThirdPersonStateToGame(true);
 
   for (const delay of [2000, 5000, 10000, 12000]) {
@@ -143,13 +167,18 @@ function registerShellHomeHotkey() {
 }
 
 function unregisterShellHomeHotkey() {
+  unregisterHomeHotkey();
   unregisterHomeKeyPoll();
   shellHomeHotkeyRegistered = false;
 }
 
 function toggleShellHotkey() {
   if (!startupComplete || !launched) return;
-  windows.toggleShell();
+  void windows.toggleShell().then(async () => {
+    if (windows.isShellVisible()) {
+      await worldSettingsSession.onShellOpened();
+    }
+  });
 }
 
 function prepareShell() {
@@ -157,24 +186,6 @@ function prepareShell() {
     windows.createShellWindow({ showOnReady: false });
   }
 }
-
-devTemp.init({
-  windows,
-  waitForShellVisible,
-  getStopWatch: () => stopWatch,
-  setStopWatch: (value) => {
-    stopWatch = value;
-  },
-  setStartupComplete: (value) => {
-    startupComplete = value;
-  },
-  setLaunched: (value) => {
-    launched = value;
-  },
-  prepareShell,
-  registerShellHomeHotkey,
-  notifyThirdPersonCameraState,
-});
 
 function restartApp() {
   if (isRestarting) return;
@@ -247,6 +258,9 @@ function onThirdPersonHotkeyPressed() {
   thirdPersonCameraActive = !thirdPersonCameraActive;
   pushThirdPersonStateToGame(true);
   notifyThirdPersonCameraState();
+  worldSettingsSession.onUserSettingsChanged({
+    thirdPerson: { cameraActive: thirdPersonCameraActive },
+  });
 }
 
 function unregisterThirdPersonKeyboardShortcut() {
@@ -263,9 +277,101 @@ function unregisterThirdPersonKeyboardShortcut() {
   }
 }
 
+function onBigMapHotkeyPressed() {
+  if (bigMapToggleLocked) return;
+  bigMapToggleLocked = true;
+  setTimeout(() => {
+    bigMapToggleLocked = false;
+  }, 250);
+  if (!minimapEnabled || !startupComplete || !launched) return;
+  void windows.toggleBigMap().then(() => {
+    if (windows.isBigMapVisible()) {
+      mapTelemetry.forceRepublish();
+      broadcastMapFogSessionUpdate();
+    }
+  });
+}
+
+function unregisterBigMapKeyboardShortcut() {
+  if (bigMapShortcutKey) {
+    if (bigMapShortcutKey === 'Home') {
+      unregisterBigMapBind();
+    } else {
+      globalShortcut.unregister(bigMapShortcutKey);
+    }
+    bigMapShortcutKey = null;
+  } else {
+    unregisterBigMapBind();
+  }
+}
+
+function applyBigMapBind(keyLabel) {
+  unregisterBigMapKeyboardShortcut();
+  minimapMapBindKey = keyLabel || null;
+
+  if (!keyLabel) {
+    registerShellHomeHotkey();
+    return { ok: true };
+  }
+
+  if (!minimapEnabled) {
+    return { ok: true, key: minimapMapBindKey };
+  }
+
+  const parsed = parseKeyLabel(keyLabel);
+  if (!parsed) {
+    return { ok: false, reason: 'INVALID_KEY' };
+  }
+
+  if (parsed.type === 'mouse') {
+    registerShellHomeHotkey();
+    registerBigMapMouseBind(parsed.vk, onBigMapHotkeyPressed);
+    return { ok: true, key: minimapMapBindKey };
+  }
+
+  const accelerator = keyLabelToAccelerator(keyLabel);
+  if (!accelerator) {
+    return { ok: false, reason: 'INVALID_KEY' };
+  }
+
+  if (accelerator === 'Home') {
+    unregisterShellHomeHotkey();
+    const hotkeyWin = windows.getHotkeyWindow();
+    if (!hotkeyWin || hotkeyWin.isDestroyed()) {
+      registerShellHomeHotkey();
+      return { ok: false, reason: 'REGISTER_FAILED' };
+    }
+
+    const ok = registerBigMapHotkey(
+      hotkeyWin,
+      MOD_NOREPEAT,
+      VK_HOME,
+      onBigMapHotkeyPressed,
+    );
+    if (!ok) {
+      registerShellHomeHotkey();
+      return { ok: false, reason: 'REGISTER_FAILED' };
+    }
+
+    bigMapShortcutKey = 'Home';
+    return { ok: true, key: minimapMapBindKey };
+  }
+
+  registerShellHomeHotkey();
+
+  const ok = globalShortcut.register(accelerator, onBigMapHotkeyPressed);
+  if (!ok) {
+    return { ok: false, reason: 'REGISTER_FAILED' };
+  }
+
+  bigMapShortcutKey = accelerator;
+  return { ok: true, key: minimapMapBindKey };
+}
+
 function applyThirdPersonBind(keyLabel) {
   unregisterThirdPersonKeyboardShortcut();
   unregisterThirdPersonHotkey();
+  thirdPersonBindKey = keyLabel || null;
 
   if (!keyLabel) {
     registerShellHomeHotkey();
@@ -328,6 +434,88 @@ function applyThirdPersonBind(keyLabel) {
   return { ok: true };
 }
 
+async function applyCustomizeSettings(settings) {
+  if (!settings) return;
+
+  const thirdPerson = settings.thirdPerson || {};
+  const minimap = settings.minimap || {};
+
+  thirdPersonFeatureEnabled = Boolean(thirdPerson.featureEnabled);
+  thirdPersonCameraActive = thirdPerson.cameraActive !== false;
+  thirdPersonCameraDistance = clampCameraDistance(thirdPerson.cameraDistance);
+
+  applyThirdPersonBind(thirdPerson.bindKey || null);
+  pushThirdPersonStateToGame(true);
+  notifyThirdPersonCameraState();
+
+  minimapEnabled = minimap.enabled !== false;
+
+  if (mainUiReady) {
+    if (minimapEnabled) {
+      await windows.showMinimap();
+    } else {
+      windows.hideMinimap();
+      await windows.hideBigMap();
+      unregisterBigMapKeyboardShortcut();
+    }
+  }
+
+  await windows.applyMinimapSize(
+    minimap.mapSizePercent ?? windows.getMinimapSizeState().percent,
+    { reposition: true },
+  );
+  applyBigMapBind(minimap.mapBindKey || null);
+}
+
+function broadcastCustomizeProfileChanged(profile) {
+  const shell = windows.getShellWindow();
+  if (shell && !shell.isDestroyed()) {
+    shell.webContents.send('customize-profile-changed', profile);
+  }
+}
+
+function broadcastWorldSettingsSavesChanged() {
+  const shell = windows.getShellWindow();
+  if (shell && !shell.isDestroyed()) {
+    shell.webContents.send('world-settings-saves-changed');
+  }
+}
+
+function formatWorldSettingsListMeta(settings = {}) {
+  const parts = [];
+  parts.push(settings.thirdPerson?.featureEnabled ? '3rd person on' : '3rd person off');
+  parts.push(settings.minimap?.enabled !== false ? 'minimap on' : 'minimap off');
+  return parts.join(' · ');
+}
+
+function configureWorldSettingsSession() {
+  worldSettingsSession.configure({
+    applySettings: applyCustomizeSettings,
+    notifyShell: broadcastCustomizeProfileChanged,
+    notifyWorldSettingsListChanged: broadcastWorldSettingsSavesChanged,
+    isSaveConfirmed: () => saveDiscovery.isSaveConfirmed(),
+    getConfirmedSaveFile: () => saveDiscovery.getConfirmedSaveFile(),
+    readTelemetry: () => mapTelemetry.readTelemetry(),
+  });
+}
+
+function getMapTelemetryTargets() {
+  const targets = [];
+  const minimap = windows.getMinimapWindow();
+  if (minimap && !minimap.isDestroyed()) {
+    targets.push(minimap);
+  }
+
+  if (windows.isBigMapVisible()) {
+    const bigMap = windows.getBigMapWindow();
+    if (bigMap && !bigMap.isDestroyed()) {
+      targets.push(bigMap);
+    }
+  }
+
+  return targets;
+}
+
 async function launchMainApp() {
   if (launched || !startupComplete) return;
   launched = true;
@@ -342,7 +530,8 @@ async function launchMainApp() {
     startup.webContents.send('game-detected');
   }
 
-  prepareShell();
+  mainUiReady = false;
+  configureWorldSettingsSession();
   scheduleThirdPersonSync();
   registerShellHomeHotkey();
   notifyThirdPersonCameraState();
@@ -355,15 +544,28 @@ async function launchMainApp() {
     return;
   }
 
+  windows.closeStartupWindow();
+
+  prepareShell();
+
   const shell = windows.getShellWindow();
   if (!shell || shell.isDestroyed()) {
-    windows.closeStartupWindow();
     return;
   }
 
+  windows.prepareMinimap();
+  await windows.applyMinimapSize(windows.getMinimapSizeState().percent, { reposition: true });
+
   await windows.showShell();
+  if (minimapEnabled) {
+    await windows.showMinimap();
+  }
   await waitForShellVisible(shell);
-  windows.closeStartupWindow();
+  await worldSettingsSession.onShellOpened();
+  mainUiReady = true;
+  mapTelemetry.startMapTelemetryWatcher(getMapTelemetryTargets);
+  configureMapTelemetrySideEffects();
+  void worldSettingsSession.syncIfConfirmed();
   startGameCloseWatch();
 }
 
@@ -413,7 +615,6 @@ async function runStartupSequence() {
   try {
     const { gameReady } = await runStartupFlow(startup);
     startupComplete = true;
-    prepareShell();
     registerShellHomeHotkey();
     beginGameWatch(gameReady);
   } catch (err) {
@@ -437,6 +638,7 @@ app.whenReady().then(() => {
   if (process.platform === 'win32') {
     app.setAppUserModelId('com.hermannsvehagen.sonarlink');
   }
+  pruneElectronChromiumCache();
   beginStartupFlow();
 });
 
@@ -446,7 +648,9 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   isQuitting = true;
+  worldSettingsSession.flushPendingSave();
   stopThirdPersonSync();
+  mapTelemetry.stopMapTelemetryWatcher();
   if (stopWatch) stopWatch();
   stopGameCloseWatch();
   globalShortcut.unregisterAll();
@@ -461,6 +665,241 @@ ipcMain.handle('get-app-info', () => {
     developer: 'StypX2K',
   };
 });
+
+ipcMain.handle('get-minimap-map-url', () => {
+  const mapPath = mapImagePath();
+  if (!fs.existsSync(mapPath)) {
+    return null;
+  }
+  return pathToFileURL(mapPath).href;
+});
+
+ipcMain.handle('get-minimap-idle-url', () => {
+  const logoPath = sonarLinkImagePath();
+  if (!fs.existsSync(logoPath)) {
+    return null;
+  }
+  return pathToFileURL(logoPath).href;
+});
+
+ipcMain.handle('get-minimap-session-state', async () => {
+  const gameRunning = await isSubnauticaRunning();
+  const telemetry = mapTelemetry.readTelemetry();
+  return { gameRunning, telemetry };
+});
+
+ipcMain.handle('get-map-telemetry', () => mapTelemetry.readTelemetry());
+
+ipcMain.handle('get-map-fog-session', () => mapFogSession.getSession());
+
+ipcMain.handle('push-map-fog-session', (_event, payload) => {
+  if (payload === null) {
+    mapFogSession.clearSession();
+    broadcastMapFogSessionUpdate();
+    return { ok: true };
+  }
+
+  if (mapFogSession.setSession(payload)) {
+    broadcastMapFogSessionUpdate();
+    return { ok: true };
+  }
+
+  return { ok: false };
+});
+
+ipcMain.handle('clear-map-fog-session', () => {
+  mapFogSession.clearSession();
+  broadcastMapFogSessionUpdate();
+  return { ok: true };
+});
+
+function broadcastMapFogSavesChanged() {
+  const shell = windows.getShellWindow();
+  if (shell && !shell.isDestroyed()) {
+    shell.webContents.send('map-fog-saves-changed');
+  }
+}
+
+function broadcastMapFogDeleted(saveId) {
+  const minimap = windows.getMinimapWindow();
+  if (minimap && !minimap.isDestroyed()) {
+    minimap.webContents.send('map-fog-deleted', saveId);
+  }
+}
+
+function broadcastMapFogSessionUpdate() {
+  const payload = mapFogSession.getSession();
+
+  const bigMap = windows.getBigMapWindow();
+  if (bigMap && !bigMap.isDestroyed() && bigMap.isVisible()) {
+    bigMap.webContents.send('map-fog-session-update', payload);
+  }
+}
+
+function sortFogSavesForDisplay(saves, activeSaveId) {
+  const sorted = [...saves];
+
+  sorted.sort((a, b) => {
+    if (activeSaveId) {
+      if (a.saveId === activeSaveId) return -1;
+      if (b.saveId === activeSaveId) return 1;
+    }
+
+    return (b.updatedAt || 0) - (a.updatedAt || 0);
+  });
+
+  return sorted;
+}
+
+function configureMapTelemetrySideEffects() {
+  let minimapLiveAnchored = false;
+
+  mapTelemetry.setTelemetryPublishedHandler((data) => {
+    void worldSettingsSession.onTelemetryUpdate(data);
+
+    const live = data?.active === true
+      && Number.isFinite(data?.x)
+      && Number.isFinite(data?.y);
+
+    if (live && !minimapLiveAnchored && windows.isMinimapVisible()) {
+      void windows.positionMinimapOverGame();
+    }
+
+    minimapLiveAnchored = live;
+
+    if (!data || data.active !== true || !data.saveFile || !saveDiscovery.isSaveConfirmed()) {
+      return;
+    }
+
+    const registration = mapFogStore.ensureSaveRegistered(data);
+    if (registration?.isNew || registration?.labelUpdated) {
+      broadcastMapFogSavesChanged();
+    }
+  });
+
+  mapTelemetry.setSaveChangeHandler((fileName, isConfirmed) => {
+    broadcastMapFogSavesChanged();
+    broadcastWorldSettingsSavesChanged();
+    void worldSettingsSession.handleSaveWrite(fileName, isConfirmed);
+  });
+}
+
+ipcMain.handle('list-map-fog-saves', () => {
+  const telemetry = mapTelemetry.readTelemetry();
+  const active = saveDiscovery.isSaveConfirmed()
+    ? mapFogStore.getActiveSaveFromTelemetry(telemetry)
+    : null;
+  const worldLabel = saveDiscovery.resolveWorldLabelForDisplay(telemetry);
+  const activeSaveId = active?.saveId || null;
+  const saves = sortFogSavesForDisplay(
+    mapFogStore.listFogSavesWithOrphanFlags(activeSaveId),
+    activeSaveId,
+  );
+
+  return {
+    saves,
+    orphanCount: saves.filter((save) => save.orphan).length,
+    active: active
+      ? {
+          saveId: active.saveId,
+          saveLabel: worldLabel || active.saveLabel,
+          saveFile: active.saveFile,
+        }
+      : null,
+  };
+});
+
+ipcMain.handle('list-world-settings-saves', () => {
+  const telemetry = mapTelemetry.readTelemetry();
+  const active = saveDiscovery.isSaveConfirmed()
+    ? mapFogStore.getActiveSaveFromTelemetry(telemetry)
+    : null;
+  const worldLabel = saveDiscovery.resolveWorldLabelForDisplay(telemetry);
+  const activeSaveId = active?.saveId || null;
+  const saves = sortFogSavesForDisplay(
+    worldSettingsStore.listSettingsSavesWithOrphanFlags(activeSaveId).map((save) => ({
+      ...save,
+      meta: formatWorldSettingsListMeta(save.settings),
+    })),
+    activeSaveId,
+  );
+
+  return {
+    saves,
+    orphanCount: saves.filter((save) => save.orphan).length,
+    active: active
+      ? {
+          saveId: active.saveId,
+          saveLabel: worldLabel || active.saveLabel,
+          saveFile: active.saveFile,
+        }
+      : null,
+  };
+});
+
+ipcMain.handle('get-map-fog-save', (_event, saveId, hints) => mapFogStore.getFogRecord(saveId, hints));
+
+ipcMain.handle('save-map-fog-save', (_event, saveId, data) => {
+  const saved = mapFogStore.saveFogData(saveId, data);
+  if (saved) {
+    broadcastMapFogSavesChanged();
+  }
+  return saved;
+});
+
+ipcMain.handle('delete-map-fog-save', (_event, saveId) => {
+  const result = mapFogStore.deleteFogSave(saveId);
+  if (result?.ok) {
+    broadcastMapFogSavesChanged();
+    broadcastMapFogDeleted(saveId);
+    broadcastMapFogSessionUpdate();
+  }
+  return result;
+});
+
+ipcMain.handle('delete-orphan-map-fog-saves', () => {
+  const telemetry = mapTelemetry.readTelemetry();
+  const active = saveDiscovery.isSaveConfirmed()
+    ? mapFogStore.getActiveSaveFromTelemetry(telemetry)
+    : null;
+  const result = mapFogStore.deleteOrphanFogSaves(active?.saveId || null);
+
+  if (result.deleted > 0) {
+    broadcastMapFogSavesChanged();
+    for (const saveId of result.deletedIds) {
+      broadcastMapFogDeleted(saveId);
+    }
+    broadcastMapFogSessionUpdate();
+  }
+
+  return result;
+});
+
+ipcMain.handle('resolve-map-save-id', (_event, telemetry) => mapFogStore.resolveSaveId(telemetry));
+
+ipcMain.handle('delete-world-settings-save', (_event, saveId) => {
+  const result = worldSettingsStore.deleteSettingsSave(saveId);
+  if (result?.ok) {
+    broadcastWorldSettingsSavesChanged();
+  }
+  return result;
+});
+
+ipcMain.handle('delete-orphan-world-settings-saves', () => {
+  const telemetry = mapTelemetry.readTelemetry();
+  const active = saveDiscovery.isSaveConfirmed()
+    ? mapFogStore.getActiveSaveFromTelemetry(telemetry)
+    : null;
+  const result = worldSettingsStore.deleteOrphanSettingsSaves(active?.saveId || null);
+
+  if (result.deleted > 0) {
+    broadcastWorldSettingsSavesChanged();
+  }
+
+  return result;
+});
+
+ipcMain.handle('get-customize-profile', () => worldSettingsSession.getShellProfile());
 
 ipcMain.handle('open-external-url', (_event, url) => {
   if (typeof url !== 'string' || !/^https?:\/\//i.test(url)) {
@@ -486,9 +925,6 @@ ipcMain.handle('startup-pick-data-folder', async (event) => {
   return { ok: true, path: folderPath };
 });
 
-// TEMP DEV
-ipcMain.handle('startup-skip-to-menu', async () => devTemp.skipToMenu());
-
 ipcMain.handle('startup-uninstall-sonarlink', async () => {
   if (await isSubnauticaRunning()) {
     return { ok: false, reason: 'GAME_RUNNING' };
@@ -502,9 +938,11 @@ ipcMain.handle('startup-uninstall-sonarlink', async () => {
   }
   stopGameCloseWatch();
   stopThirdPersonSync();
+  mapTelemetry.stopMapTelemetryWatcher();
   launched = false;
   startupComplete = false;
   windows.hideShell();
+  windows.hideMinimap();
 
   return { ok: true };
 });
@@ -513,6 +951,9 @@ ipcMain.handle('set-third-person-enabled', (_event, enabled) => {
   thirdPersonFeatureEnabled = Boolean(enabled);
   pushThirdPersonStateToGame(true);
   notifyThirdPersonCameraState();
+  worldSettingsSession.onUserSettingsChanged({
+    thirdPerson: { featureEnabled: thirdPersonFeatureEnabled },
+  });
   return { ok: true };
 });
 
@@ -520,6 +961,7 @@ ipcMain.handle('get-third-person-state', () => ({
   featureEnabled: thirdPersonFeatureEnabled,
   cameraActive: thirdPersonCameraActive,
   cameraDistance: thirdPersonCameraDistance,
+  bindKey: thirdPersonBindKey,
 }));
 
 ipcMain.handle('set-third-person-distance', (_event, percent, options = {}) => {
@@ -531,12 +973,77 @@ ipcMain.handle('set-third-person-distance', (_event, percent, options = {}) => {
       pushCameraDistancePreviewDebounced();
     }
   }
+  if (options.smooth) {
+    worldSettingsSession.onUserSettingsChanged({
+      thirdPerson: { cameraDistance: thirdPersonCameraDistance },
+    });
+  }
   return { ok: true };
 });
 
 ipcMain.handle('set-third-person-bind', (_event, keyLabel) => {
   const label = typeof keyLabel === 'string' && keyLabel.trim() ? keyLabel.trim() : null;
-  return applyThirdPersonBind(label);
+  const result = applyThirdPersonBind(label);
+  if (result?.ok !== false) {
+    worldSettingsSession.onUserSettingsChanged({
+      thirdPerson: { bindKey: label },
+    });
+  }
+  return result;
+});
+
+ipcMain.handle('set-minimap-enabled', async (_event, enabled) => {
+  minimapEnabled = Boolean(enabled);
+  if (!mainUiReady) {
+    return { ok: true, enabled: minimapEnabled };
+  }
+
+  if (minimapEnabled) {
+    await windows.showMinimap();
+    if (minimapMapBindKey) {
+      applyBigMapBind(minimapMapBindKey);
+    }
+  } else {
+    windows.hideMinimap();
+    await windows.hideBigMap();
+    unregisterBigMapKeyboardShortcut();
+  }
+  worldSettingsSession.onUserSettingsChanged({
+    minimap: { enabled: minimapEnabled },
+  });
+  return { ok: true, enabled: minimapEnabled };
+});
+
+ipcMain.handle('get-minimap-settings', () => ({
+  enabled: minimapEnabled,
+  mapSizePercent: windows.getMinimapSizeState().percent,
+  mapBindKey: minimapMapBindKey,
+}));
+
+ipcMain.handle('set-minimap-size', async (_event, percent, options = {}) => {
+  const result = await windows.applyMinimapSize(percent, options);
+  if (options?.preview === false) {
+    worldSettingsSession.onUserSettingsChanged({
+      minimap: { mapSizePercent: windows.getMinimapSizeState().percent },
+    });
+  }
+  return result;
+});
+
+ipcMain.handle('set-minimap-map-bind', (_event, keyLabel) => {
+  const label = typeof keyLabel === 'string' && keyLabel.trim() ? keyLabel.trim() : null;
+  const result = applyBigMapBind(label);
+  if (result?.ok !== false) {
+    worldSettingsSession.onUserSettingsChanged({
+      minimap: { mapBindKey: label },
+    });
+  }
+  return result;
+});
+
+ipcMain.handle('hide-big-map', async () => {
+  await windows.hideBigMap();
+  return { ok: true };
 });
 
 ipcMain.on('window-minimize', (event) => {
