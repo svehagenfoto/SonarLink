@@ -5,8 +5,16 @@
 function setKeybindValue(keybind, bindKey) {
   if (!keybind?.keybindKnapp) return;
 
-  if (bindKey) {
-    keybind.keybindKnapp.boundKey = bindKey;
+  let key = bindKey || null;
+  if (key) {
+    const parts = String(key).toUpperCase().split('+').map((part) => part.trim());
+    if (parts.includes('HOME')) {
+      key = null;
+    }
+  }
+
+  if (key) {
+    keybind.keybindKnapp.boundKey = key;
     keybind.keybindKnapp.setState('bound', { silent: true });
     return;
   }

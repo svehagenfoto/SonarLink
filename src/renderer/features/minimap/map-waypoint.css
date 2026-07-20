@@ -1,0 +1,33 @@
+.sonar-map-waypoint-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+  z-index: 8;
+}
+
+/* Above minimap arrow when mounted on the core */
+.sonar-minimap-core > .sonar-map-waypoint-layer {
+  z-index: 6;
+}
+
+.sonar-map-waypoint-line-outline,
+.sonar-map-waypoint-line {
+  opacity: 1;
+}
+
+.sonar-map-waypoint-line {
+  filter: drop-shadow(0 0 3px rgba(255, 45, 45, 0.45));
+}
+
+.sonar-map-waypoint-circle-outline,
+.sonar-map-waypoint-circle,
+.sonar-map-waypoint-circle-core {
+  opacity: 1;
+}
+
+.sonar-map-waypoint-circle {
+  filter: drop-shadow(0 0 5px rgba(255, 45, 45, 0.55));
+}

@@ -16,7 +16,7 @@ const ShowWindow = user32.func('bool __stdcall ShowWindow(void *hWnd, int nCmdSh
 const ShowCursor = user32.func('int __stdcall ShowCursor(bool bShow)');
 const ClipCursor = user32.func('bool __stdcall ClipCursor(void *lpRect)');
 const ReleaseCapture = user32.func('bool __stdcall ReleaseCapture()');
-const GetWindowThreadProcessId = user32.func('uint32_t __stdcall GetWindowThreadProcessId(void *hWnd, uint32_t *lpdwProcessId)');
+const GetWindowThreadProcessId = user32.func('uint32_t __stdcall GetWindowThreadProcessId(void *hWnd, uint32_t *)');
 const GetCurrentThreadId = kernel32.func('uint32_t __stdcall GetCurrentThreadId()');
 const AttachThreadInput = user32.func('bool __stdcall AttachThreadInput(uint32_t idAttach, uint32_t idAttachTo, bool fAttach)');
 const keybd_event = user32.func('void __stdcall keybd_event(uint8_t bVk, uint8_t bScan, uint32_t dwFlags, uintptr_t dwExtraInfo)');
@@ -89,6 +89,25 @@ function showSystemCursor() {
   while (count < 0 && guard < 24) {
     count = ShowCursor(true);
     guard += 1;
+  }
+}
+
+function getForegroundHwnd() {
+  return toNum(GetForegroundWindow());
+}
+
+function getProcessIdFromHwnd(hwndNum) {
+  if (!hwndNum) return null;
+  const hwnd = handleToPtr(hwndNum);
+  if (!hwnd) return null;
+
+  try {
+    const pidBuf = Buffer.alloc(4);
+    GetWindowThreadProcessId(hwnd, pidBuf);
+    const pid = pidBuf.readUInt32LE(0);
+    return pid > 0 ? pid : null;
+  } catch {
+    return null;
   }
 }
 
@@ -358,6 +377,8 @@ module.exports = {
   focusExternalWindowHandle,
   releaseGameInputCapture,
   showSystemCursor,
+  getForegroundHwnd,
+  getProcessIdFromHwnd,
   registerHomeHotkey,
   registerHomeKeyPoll,
   unregisterHomeKeyPoll,

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SonarLink Version</title>
+  <style>
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      background: transparent;
+      overflow: hidden;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    .version-label {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      margin: 0;
+      padding: 0 2px;
+      color: rgba(180, 196, 204, 0.72);
+      font-family: 'Exo 2', 'Segoe UI', sans-serif;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      line-height: 1.2;
+      white-space: nowrap;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+    }
+  </style>
+</head>
+<body>
+  <p class="version-label" id="versionLabel" aria-hidden="true"></p>
+  <script>
+    window.sonarlink.getAppInfo().then((info) => {
+      const el = document.getElementById('versionLabel');
+      if (el && info?.version) {
+        el.textContent = 'SonarLink(' + info.version + ')';
+      }
+    });
+  </script>
+</body>
+</html>

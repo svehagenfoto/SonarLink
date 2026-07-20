@@ -13,7 +13,9 @@ builder-effective-config.yaml
 # Never upload
 .cursor/
 SonarLink-PROSJEKT-ARKIV.md
-
 docs/
 SonarLink-README-and-License.pdf
 scripts/export-readme-license-pdf.js
+
+# Separate map bake project (not part of SonarLink)
+Get capture sn2 png/

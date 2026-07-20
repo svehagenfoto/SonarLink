@@ -2,7 +2,7 @@ const { BrowserWindow, screen, nativeImage, app } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { assetPath } = require('./paths');
-const { getGameWindowBounds, getGameWindowHandle } = require('./gameWindow');
+const { getGameWindowBounds, getGameWindowHandle, getGameProcessId } = require('./gameWindow');
 const {
   hideWindowFromTaskbar,
   forceWindowFocus,
@@ -11,20 +11,28 @@ const {
   showSystemCursor,
   unregisterAllHotkeys,
   isMouseLeftDown,
+  getForegroundHwnd,
+  getProcessIdFromHwnd,
 } = require('./win32');
 
 let startupWindow = null;
 let shellWindow = null;
 let minimapWindow = null;
 let bigMapWindow = null;
+let bigMapPreparePromise = null;
+let bigMapContentReady = false;
 let hotkeyWindow = null;
+let versionOverlayWindow = null;
 let clickPollTimer = null;
+let clickOutsideArmTimer = null;
 let clickOutsideArmed = false;
 let wasMouseDown = false;
 let bigMapClickPollTimer = null;
+let bigMapClickOutsideArmTimer = null;
 let bigMapClickOutsideArmed = false;
 let bigMapWasMouseDown = false;
 let onShellToggle = null;
+let onBigMapHidden = null;
 
 const CLICK_OUTSIDE_ARM_DELAY_MS = 500;
 const MINIMAP_SIZE_MIN = 120;
@@ -35,6 +43,20 @@ const MINIMAP_STATUS_BAND = 72;
 const MINIMAP_STATUS_MIN_WIDTH = 220;
 const MINIMAP_SCREEN_TOP = 28;
 const MINIMAP_SCREEN_RIGHT = 28;
+const VERSION_OVERLAY_WIDTH = 168;
+const VERSION_OVERLAY_HEIGHT = 22;
+const VERSION_OVERLAY_RIGHT = 16;
+const VERSION_OVERLAY_BOTTOM = 20;
+const OVERLAY_AWAY_POLL_MS = 400;
+const OVERLAY_AWAY_HIDE_DELAY_MS = 350;
+const GAME_PID_CACHE_MS = 2500;
+
+let overlayAwayPollTimer = null;
+let overlayAwayHideTimer = null;
+let overlaysHiddenByAway = false;
+let cachedGamePid = null;
+let cachedGamePidAt = 0;
+let getMinimapEnabledForOverlay = () => true;
 
 let minimapVisualSize = 168;
 let minimapMapSizePercent = MINIMAP_SIZE_DEFAULT_PERCENT;
@@ -136,9 +158,220 @@ function applyMinimapWindowBoundsSync(anchor) {
 }
 
 async function applyMinimapWindowBounds() {
-  if (!minimapWindow || minimapWindow.isDestroyed()) return null;
+  if (!minimapWindow || minimapWindow.isDestroyed()) {
+    await positionVersionOverlayOverGame();
+    return null;
+  }
   await refreshMinimapAnchorCache();
-  return applyMinimapWindowBoundsSync(cachedMinimapAnchor);
+  const bounds = applyMinimapWindowBoundsSync(cachedMinimapAnchor);
+  await positionVersionOverlayOverGame();
+  return bounds;
+}
+
+function computeVersionOverlayBounds(anchor) {
+  return {
+    x: Math.round(anchor.x + anchor.width - VERSION_OVERLAY_WIDTH - VERSION_OVERLAY_RIGHT),
+    y: Math.round(anchor.y + anchor.height - VERSION_OVERLAY_HEIGHT - VERSION_OVERLAY_BOTTOM),
+    width: VERSION_OVERLAY_WIDTH,
+    height: VERSION_OVERLAY_HEIGHT,
+  };
+}
+
+async function positionVersionOverlayOverGame() {
+  if (!versionOverlayWindow || versionOverlayWindow.isDestroyed()) return;
+  const anchor = await getMinimapAnchorArea();
+  const wasVisible = versionOverlayWindow.isVisible();
+  versionOverlayWindow.setBounds(computeVersionOverlayBounds(anchor));
+  if (!wasVisible) {
+    versionOverlayWindow.hide();
+  }
+}
+
+function createVersionOverlayWindow() {
+  if (versionOverlayWindow && !versionOverlayWindow.isDestroyed()) {
+    return versionOverlayWindow;
+  }
+
+  versionOverlayWindow = new BrowserWindow({
+    width: VERSION_OVERLAY_WIDTH,
+    height: VERSION_OVERLAY_HEIGHT,
+    frame: false,
+    transparent: true,
+    resizable: false,
+    show: false,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    focusable: false,
+    hasShadow: false,
+    thickFrame: false,
+    backgroundColor: '#00000000',
+    webPreferences: {
+      preload: getPreloadPath(),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+
+  versionOverlayWindow.setAlwaysOnTop(true, 'screen-saver');
+  versionOverlayWindow.setIgnoreMouseEvents(true);
+  versionOverlayWindow.setSkipTaskbar(true);
+  hideWindowFromTaskbar(versionOverlayWindow);
+
+  versionOverlayWindow.loadFile(
+    path.join(__dirname, '..', 'renderer', 'features', 'version-overlay', 'version-overlay.html'),
+  );
+
+  versionOverlayWindow.on('closed', () => {
+    versionOverlayWindow = null;
+  });
+
+  return versionOverlayWindow;
+}
+
+function prepareVersionOverlay() {
+  if (!versionOverlayWindow || versionOverlayWindow.isDestroyed()) {
+    createVersionOverlayWindow();
+  }
+}
+
+async function showVersionOverlay() {
+  if (!versionOverlayWindow || versionOverlayWindow.isDestroyed()) {
+    createVersionOverlayWindow();
+  }
+
+  await positionVersionOverlayOverGame();
+  versionOverlayWindow.setSkipTaskbar(true);
+  hideWindowFromTaskbar(versionOverlayWindow);
+  versionOverlayWindow.showInactive();
+  versionOverlayWindow.setSkipTaskbar(true);
+  hideWindowFromTaskbar(versionOverlayWindow);
+
+  setTimeout(() => {
+    void positionVersionOverlayOverGame();
+  }, 600);
+  setTimeout(() => {
+    void positionVersionOverlayOverGame();
+  }, 2000);
+}
+
+function hideVersionOverlay() {
+  if (!versionOverlayWindow || versionOverlayWindow.isDestroyed()) return;
+  versionOverlayWindow.hide();
+}
+
+function isSonarLinkSurfaceActive() {
+  if (isShellVisible() || isBigMapVisible()) return true;
+
+  const focused = BrowserWindow.getFocusedWindow();
+  if (!focused || focused.isDestroyed()) return false;
+  if (focused === minimapWindow || focused === versionOverlayWindow) return false;
+  if (focused === hotkeyWindow) return false;
+  return true;
+}
+
+async function refreshCachedGamePid() {
+  const now = Date.now();
+  if (cachedGamePid && now - cachedGamePidAt < GAME_PID_CACHE_MS) {
+    return cachedGamePid;
+  }
+
+  cachedGamePid = await getGameProcessId();
+  cachedGamePidAt = now;
+  return cachedGamePid;
+}
+
+async function isGameProcessForeground() {
+  const gamePid = await refreshCachedGamePid();
+  if (!gamePid) return false;
+
+  const fgHwnd = getForegroundHwnd();
+  const fgPid = getProcessIdFromHwnd(fgHwnd);
+  if (fgPid && fgPid === gamePid) return true;
+
+  // Fallback if PID out-param failed: compare main window hwnd.
+  if (!fgPid) {
+    const gameHwnd = await getGameWindowHandle();
+    return Boolean(gameHwnd && fgHwnd && Number(gameHwnd) === Number(fgHwnd));
+  }
+
+  return false;
+}
+
+async function shouldKeepGameOverlaysVisible() {
+  if (isSonarLinkSurfaceActive()) return true;
+  return isGameProcessForeground();
+}
+
+function clearOverlayAwayHideTimer() {
+  if (overlayAwayHideTimer) {
+    clearTimeout(overlayAwayHideTimer);
+    overlayAwayHideTimer = null;
+  }
+}
+
+function hideOverlaysForAway() {
+  if (overlaysHiddenByAway) return;
+  overlaysHiddenByAway = true;
+  hideMinimap();
+  hideVersionOverlay();
+}
+
+async function restoreOverlaysAfterAway() {
+  if (!overlaysHiddenByAway) return;
+  overlaysHiddenByAway = false;
+
+  if (typeof getMinimapEnabledForOverlay === 'function' && getMinimapEnabledForOverlay()) {
+    await showMinimap();
+  }
+  await showVersionOverlay();
+}
+
+async function syncOverlayAwayVisibility() {
+  const keepVisible = await shouldKeepGameOverlaysVisible();
+
+  if (keepVisible) {
+    clearOverlayAwayHideTimer();
+    if (overlaysHiddenByAway) {
+      await restoreOverlaysAfterAway();
+    }
+    return;
+  }
+
+  if (overlaysHiddenByAway || overlayAwayHideTimer) return;
+
+  overlayAwayHideTimer = setTimeout(() => {
+    overlayAwayHideTimer = null;
+    void shouldKeepGameOverlaysVisible().then((keepVisible) => {
+      // Re-check after delay so shell/world map focus handoff does not flicker.
+      if (!keepVisible) {
+        hideOverlaysForAway();
+      }
+    });
+  }, OVERLAY_AWAY_HIDE_DELAY_MS);
+}
+
+function startOverlayAwayWatch(options = {}) {
+  stopOverlayAwayWatch();
+  if (typeof options.getMinimapEnabled === 'function') {
+    getMinimapEnabledForOverlay = options.getMinimapEnabled;
+  }
+
+  overlayAwayPollTimer = setInterval(() => {
+    void syncOverlayAwayVisibility();
+  }, OVERLAY_AWAY_POLL_MS);
+
+  void syncOverlayAwayVisibility();
+}
+
+function stopOverlayAwayWatch() {
+  if (overlayAwayPollTimer) {
+    clearInterval(overlayAwayPollTimer);
+    overlayAwayPollTimer = null;
+  }
+  clearOverlayAwayHideTimer();
+  overlaysHiddenByAway = false;
+  cachedGamePid = null;
+  cachedGamePidAt = 0;
 }
 
 function updateMinimapSizeState(percent) {
@@ -255,6 +488,7 @@ function applyMinimapTaskbarHidden() {
 async function positionMinimapOverGame() {
   if (!minimapWindow || minimapWindow.isDestroyed()) return;
   await applyMinimapWindowBounds();
+  await positionVersionOverlayOverGame();
 }
 
 async function positionShellOverGame() {
@@ -295,6 +529,10 @@ function stopBigMapClickOutsidePoll() {
     clearInterval(bigMapClickPollTimer);
     bigMapClickPollTimer = null;
   }
+  if (bigMapClickOutsideArmTimer) {
+    clearTimeout(bigMapClickOutsideArmTimer);
+    bigMapClickOutsideArmTimer = null;
+  }
   bigMapClickOutsideArmed = false;
   bigMapWasMouseDown = false;
 }
@@ -317,7 +555,8 @@ function startBigMapClickOutsidePoll() {
     bigMapWasMouseDown = down;
   }, 40);
 
-  setTimeout(() => {
+  bigMapClickOutsideArmTimer = setTimeout(() => {
+    bigMapClickOutsideArmTimer = null;
     bigMapClickOutsideArmed = true;
     bigMapWasMouseDown = isMouseLeftDown();
   }, CLICK_OUTSIDE_ARM_DELAY_MS);
@@ -327,6 +566,10 @@ function stopClickOutsidePoll() {
   if (clickPollTimer) {
     clearInterval(clickPollTimer);
     clickPollTimer = null;
+  }
+  if (clickOutsideArmTimer) {
+    clearTimeout(clickOutsideArmTimer);
+    clickOutsideArmTimer = null;
   }
   clickOutsideArmed = false;
   wasMouseDown = false;
@@ -350,7 +593,8 @@ function startClickOutsidePoll() {
     wasMouseDown = down;
   }, 40);
 
-  setTimeout(() => {
+  clickOutsideArmTimer = setTimeout(() => {
+    clickOutsideArmTimer = null;
     clickOutsideArmed = true;
     wasMouseDown = isMouseLeftDown();
   }, CLICK_OUTSIDE_ARM_DELAY_MS);
@@ -438,6 +682,10 @@ function createStartupWindow() {
 
 function setShellToggleHandler(handler) {
   onShellToggle = handler;
+}
+
+function setBigMapHiddenHandler(handler) {
+  onBigMapHidden = handler;
 }
 
 function createShellWindow(options = {}) {
@@ -578,26 +826,20 @@ function applyBigMapTaskbarHidden() {
   hideWindowFromTaskbar(bigMapWindow);
 }
 
-async function positionBigMapOverGame() {
-  if (!bigMapWindow || bigMapWindow.isDestroyed()) return;
-
-  const anchor = await getMinimapAnchorArea();
-  const width = Math.max(720, Math.round(anchor.width * 0.88));
-  const height = Math.max(480, Math.round(anchor.height * 0.88));
-  const x = Math.round(anchor.x + (anchor.width - width) / 2);
-  const y = Math.round(anchor.y + (anchor.height - height) / 2);
-
-  bigMapWindow.setBounds({ x, y, width, height });
-}
-
-function createBigMapWindow() {
+function createBigMapWindow(initialBounds = null) {
   if (bigMapWindow && !bigMapWindow.isDestroyed()) {
     return bigMapWindow;
   }
 
+  const width = initialBounds?.width || 960;
+  const height = initialBounds?.height || 640;
+  const x = Number.isFinite(initialBounds?.x) ? initialBounds.x : undefined;
+  const y = Number.isFinite(initialBounds?.y) ? initialBounds.y : undefined;
+
   bigMapWindow = new BrowserWindow({
-    width: 960,
-    height: 640,
+    width,
+    height,
+    ...(Number.isFinite(x) && Number.isFinite(y) ? { x, y } : {}),
     frame: false,
     transparent: false,
     resizable: false,
@@ -628,15 +870,77 @@ function createBigMapWindow() {
 
   bigMapWindow.on('closed', () => {
     bigMapWindow = null;
+    bigMapPreparePromise = null;
+    bigMapContentReady = false;
   });
 
   return bigMapWindow;
 }
 
-async function showBigMap() {
-  if (!bigMapWindow || bigMapWindow.isDestroyed()) {
-    createBigMapWindow();
+function waitForBigMapLoad() {
+  return new Promise((resolve) => {
+    if (!bigMapWindow || bigMapWindow.isDestroyed()) {
+      resolve();
+      return;
+    }
+
+    if (!bigMapWindow.webContents.isLoading()) {
+      resolve();
+      return;
+    }
+
+    bigMapWindow.webContents.once('did-finish-load', () => resolve());
+  });
+}
+
+async function waitForBigMapContentReady() {
+  if (!bigMapWindow || bigMapWindow.isDestroyed()) return;
+
+  try {
+    await bigMapWindow.webContents.executeJavaScript(`
+      (async () => {
+        const deadline = Date.now() + 15000;
+        while (Date.now() < deadline) {
+          const img = document.getElementById('bigMapImage');
+          if (!img) {
+            await new Promise((r) => setTimeout(r, 40));
+            continue;
+          }
+          if (img.complete && img.naturalWidth > 0) return true;
+          if (img.complete && !img.getAttribute('src')) return true;
+          await new Promise((r) => setTimeout(r, 40));
+        }
+        return false;
+      })()
+    `);
+  } catch {
+    // World map can still open if warm up timing fails.
   }
+}
+
+function computeBigMapBounds(anchor) {
+  const width = Math.max(720, Math.round(anchor.width * 0.88));
+  const height = Math.max(480, Math.round(anchor.height * 0.88));
+  const x = Math.round(anchor.x + (anchor.width - width) / 2);
+  const y = Math.round(anchor.y + (anchor.height - height) / 2);
+  return { x, y, width, height };
+}
+
+async function positionBigMapOverGame() {
+  if (!bigMapWindow || bigMapWindow.isDestroyed()) return;
+
+  const anchor = await getMinimapAnchorArea();
+  const bounds = computeBigMapBounds(anchor);
+  const wasVisible = bigMapWindow.isVisible();
+  bigMapWindow.setBounds(bounds);
+  if (!wasVisible) {
+    bigMapWindow.hide();
+  }
+}
+
+async function showBigMap() {
+  // First open may wait for warm up. Later opens only reposition and show.
+  await prepareBigMap();
 
   if (isShellVisible()) {
     await hideShell();
@@ -662,6 +966,13 @@ async function hideBigMap() {
   if (!bigMapWindow || bigMapWindow.isDestroyed()) return;
   stopBigMapClickOutsidePoll();
   bigMapWindow.hide();
+  if (typeof onBigMapHidden === 'function') {
+    try {
+      onBigMapHidden();
+    } catch {
+      // ignore resume hook errors
+    }
+  }
   await returnFocusToGame();
 }
 
@@ -682,9 +993,41 @@ function isBigMapVisible() {
   return Boolean(bigMapWindow && !bigMapWindow.isDestroyed() && bigMapWindow.isVisible());
 }
 
-function prepareBigMap() {
-  if (!bigMapWindow || bigMapWindow.isDestroyed()) {
-    createBigMapWindow();
+async function prepareBigMap() {
+  if (bigMapPreparePromise) {
+    return bigMapPreparePromise;
+  }
+
+  if (bigMapContentReady && bigMapWindow && !bigMapWindow.isDestroyed()) {
+    return;
+  }
+
+  bigMapPreparePromise = (async () => {
+    const anchor = await getMinimapAnchorArea();
+    const bounds = computeBigMapBounds(anchor);
+
+    if (!bigMapWindow || bigMapWindow.isDestroyed()) {
+      createBigMapWindow(bounds);
+      bigMapContentReady = false;
+    } else {
+      const wasVisible = bigMapWindow.isVisible();
+      bigMapWindow.setBounds(bounds);
+      if (!wasVisible) {
+        bigMapWindow.hide();
+      }
+    }
+
+    await waitForBigMapLoad();
+    await positionBigMapOverGame();
+    await waitForBigMapContentReady();
+    bigMapContentReady = true;
+    applyBigMapTaskbarHidden();
+  })();
+
+  try {
+    await bigMapPreparePromise;
+  } finally {
+    bigMapPreparePromise = null;
   }
 }
 
@@ -747,6 +1090,7 @@ function getHotkeyWindow() {
 }
 
 function destroyAllWindows() {
+  stopOverlayAwayWatch();
   stopClickOutsidePoll();
   stopBigMapClickOutsidePoll();
   unregisterAllHotkeys();
@@ -757,7 +1101,10 @@ function destroyAllWindows() {
   shellWindow = null;
   minimapWindow = null;
   bigMapWindow = null;
+  bigMapPreparePromise = null;
+  bigMapContentReady = false;
   hotkeyWindow = null;
+  versionOverlayWindow = null;
 }
 
 function getStartupWindow() {
@@ -790,6 +1137,12 @@ module.exports = {
   positionMinimapOverGame,
   isMinimapVisible,
   prepareMinimap,
+  prepareVersionOverlay,
+  showVersionOverlay,
+  hideVersionOverlay,
+  positionVersionOverlayOverGame,
+  startOverlayAwayWatch,
+  stopOverlayAwayWatch,
   showBigMap,
   hideBigMap,
   toggleBigMap,
@@ -799,6 +1152,7 @@ module.exports = {
   isShellVisible,
   destroyAllWindows,
   setShellToggleHandler,
+  setBigMapHiddenHandler,
   getStartupWindow,
   getShellWindow,
   getMinimapWindow,

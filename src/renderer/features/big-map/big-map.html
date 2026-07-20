@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SonarLink World Map</title>
   <link rel="stylesheet" href="../minimap/map-status.css" />
+  <link rel="stylesheet" href="../minimap/map-markers.css" />
+  <link rel="stylesheet" href="../minimap/map-waypoint.css" />
   <link rel="stylesheet" href="big-map.css" />
 </head>
 <body>
@@ -17,10 +19,153 @@
         <div class="sonar-big-map-map-layer" id="bigMapLayer">
           <img class="sonar-big-map-map-image" id="bigMapImage" alt="" draggable="false" decoding="async" />
         </div>
-        <p class="sonar-map-status sonar-big-map-status" role="status" aria-live="polite">
-          <span class="sonar-map-status-dot" aria-hidden="true"></span>
-          <span class="sonar-map-status-text">Loading world and map</span>
-        </p>
+        <div class="sonar-big-map-status-stack" aria-live="polite">
+          <p class="sonar-map-status sonar-big-map-status" role="status">
+            <span class="sonar-map-status-dot" aria-hidden="true"></span>
+            <span class="sonar-map-status-text">Loading world and map</span>
+          </p>
+          <p class="sonar-map-status sonar-big-map-status sonar-big-map-status--markers" role="status">
+            <span class="sonar-map-status-text">Markers unlock when world is confirmed</span>
+          </p>
+          <p class="sonar-map-status sonar-big-map-status sonar-big-map-status--markers" role="status">
+            <span class="sonar-map-status-text">Waypoints unlock when world is confirmed</span>
+          </p>
+        </div>
+        <div class="sonar-big-map-hint-stack" aria-hidden="true">
+          <p class="sonar-big-map-hint" id="bigMapWaypointHint" hidden>
+            Double click to place a waypoint
+          </p>
+          <p class="sonar-big-map-hint" id="bigMapMarkerHint" hidden>
+            Right click to place a marker
+          </p>
+        </div>
+        <div class="sonar-big-map-compass" aria-hidden="true" title="North">
+          <svg class="sonar-big-map-compass-rose" viewBox="0 0 200 200" focusable="false">
+            <defs>
+              <linearGradient id="compassRingGlow" x1="20%" y1="10%" x2="85%" y2="90%">
+                <stop offset="0%" stop-color="#5eebf0" stop-opacity="0.7" />
+                <stop offset="55%" stop-color="#8ed4f0" stop-opacity="0.35" />
+                <stop offset="100%" stop-color="#5eebf0" stop-opacity="0.2" />
+              </linearGradient>
+              <radialGradient id="compassDisc" cx="50%" cy="45%" r="55%">
+                <stop offset="0%" stop-color="#0a2830" stop-opacity="0.55" />
+                <stop offset="70%" stop-color="#061820" stop-opacity="0.35" />
+                <stop offset="100%" stop-color="#061820" stop-opacity="0" />
+              </radialGradient>
+            </defs>
+
+            <!-- Soft disc so rose reads on bright map tiles -->
+            <circle cx="100" cy="100" r="78" fill="url(#compassDisc)" />
+
+            <!-- Concentric rings -->
+            <circle cx="100" cy="100" r="66" fill="none" stroke="url(#compassRingGlow)" stroke-width="1.4" />
+            <circle cx="100" cy="100" r="62.5" fill="none" stroke="rgba(94,235,240,0.22)" stroke-width="0.8" />
+            <circle cx="100" cy="100" r="58" fill="none" stroke="rgba(94,235,240,0.38)" stroke-width="1" />
+            <circle cx="100" cy="100" r="54.5" fill="none" stroke="rgba(94,235,240,0.16)" stroke-width="0.7" />
+
+            <!-- Degree ticks (72 marks via dash ring) -->
+            <circle
+              cx="100"
+              cy="100"
+              r="60.2"
+              fill="none"
+              stroke="rgba(200,240,244,0.55)"
+              stroke-width="3.2"
+              stroke-dasharray="0.9 4.36"
+              transform="rotate(-90 100 100)"
+            />
+            <!-- Major ticks at N E S W -->
+            <g stroke="rgba(94,235,240,0.75)" stroke-width="1.35" stroke-linecap="round">
+              <line x1="100" y1="33.5" x2="100" y2="40" />
+              <line x1="100" y1="160" x2="100" y2="166.5" />
+              <line x1="33.5" y1="100" x2="40" y2="100" />
+              <line x1="160" y1="100" x2="166.5" y2="100" />
+            </g>
+            <!-- Mid ticks at NE SE SW NW -->
+            <g stroke="rgba(94,235,240,0.5)" stroke-width="1" stroke-linecap="round">
+              <line x1="54.5" y1="54.5" x2="58.8" y2="58.8" />
+              <line x1="141.2" y1="141.2" x2="145.5" y2="145.5" />
+              <line x1="145.5" y1="54.5" x2="141.2" y2="58.8" />
+              <line x1="58.8" y1="141.2" x2="54.5" y2="145.5" />
+            </g>
+
+            <!-- Fine radial needles under the star -->
+            <g stroke="rgba(94,235,240,0.22)" stroke-width="0.55" stroke-linecap="round">
+              <line x1="100" y1="100" x2="100" y2="46" />
+              <line x1="100" y1="100" x2="100" y2="154" />
+              <line x1="100" y1="100" x2="46" y2="100" />
+              <line x1="100" y1="100" x2="154" y2="100" />
+              <line x1="100" y1="100" x2="138.2" y2="61.8" />
+              <line x1="100" y1="100" x2="61.8" y2="138.2" />
+              <line x1="100" y1="100" x2="138.2" y2="138.2" />
+              <line x1="100" y1="100" x2="61.8" y2="61.8" />
+              <line x1="100" y1="100" x2="120.7" y2="49.3" />
+              <line x1="100" y1="100" x2="79.3" y2="150.7" />
+              <line x1="100" y1="100" x2="150.7" y2="79.3" />
+              <line x1="100" y1="100" x2="49.3" y2="120.7" />
+              <line x1="100" y1="100" x2="150.7" y2="120.7" />
+              <line x1="100" y1="100" x2="49.3" y2="79.3" />
+              <line x1="100" y1="100" x2="120.7" y2="150.7" />
+              <line x1="100" y1="100" x2="79.3" y2="49.3" />
+            </g>
+
+            <!-- Ordinal points (split bevel, shorter) -->
+            <g>
+              <g transform="rotate(45 100 100)">
+                <path d="M100 100 L91.5 58 L100 44 Z" fill="#061820" stroke="rgba(6,24,32,0.5)" stroke-width="0.3" />
+                <path d="M100 100 L108.5 58 L100 44 Z" fill="#7eb8c0" stroke="rgba(6,24,32,0.35)" stroke-width="0.3" />
+              </g>
+              <g transform="rotate(135 100 100)">
+                <path d="M100 100 L91.5 58 L100 44 Z" fill="#061820" />
+                <path d="M100 100 L108.5 58 L100 44 Z" fill="#6aa8b2" />
+              </g>
+              <g transform="rotate(225 100 100)">
+                <path d="M100 100 L91.5 58 L100 44 Z" fill="#061820" />
+                <path d="M100 100 L108.5 58 L100 44 Z" fill="#6aa8b2" />
+              </g>
+              <g transform="rotate(315 100 100)">
+                <path d="M100 100 L91.5 58 L100 44 Z" fill="#061820" />
+                <path d="M100 100 L108.5 58 L100 44 Z" fill="#7eb8c0" />
+              </g>
+            </g>
+
+            <!-- Cardinal points (split bevel, longer). N is up. -->
+            <!-- North -->
+            <path d="M100 100 L87 52 L100 28 Z" fill="#04141c" stroke="rgba(3,12,16,0.4)" stroke-width="0.35" />
+            <path d="M100 100 L113 52 L100 28 Z" fill="#d4f5f7" stroke="rgba(3,12,16,0.25)" stroke-width="0.35" />
+            <!-- East -->
+            <path d="M100 100 L148 87 L172 100 Z" fill="#04141c" />
+            <path d="M100 100 L148 113 L172 100 Z" fill="#a8dde3" />
+            <!-- South -->
+            <path d="M100 100 L113 148 L100 172 Z" fill="#04141c" />
+            <path d="M100 100 L87 148 L100 172 Z" fill="#a8dde3" />
+            <!-- West -->
+            <path d="M100 100 L52 113 L28 100 Z" fill="#04141c" />
+            <path d="M100 100 L52 87 L28 100 Z" fill="#a8dde3" />
+
+            <!-- Inner diamond accents between cardinals -->
+            <g fill="rgba(94,235,240,0.12)" stroke="rgba(94,235,240,0.28)" stroke-width="0.5">
+              <path d="M100 100 L108 92 L100 86 L92 92 Z" />
+              <path d="M100 100 L108 108 L100 114 L92 108 Z" />
+              <path d="M100 100 L92 92 L86 100 L92 108 Z" />
+              <path d="M100 100 L108 92 L114 100 L108 108 Z" />
+            </g>
+
+            <!-- Hub -->
+            <circle cx="100" cy="100" r="9.5" fill="#061820" stroke="rgba(94,235,240,0.55)" stroke-width="1.1" />
+            <circle cx="100" cy="100" r="6.2" fill="none" stroke="rgba(142,212,240,0.45)" stroke-width="0.7" />
+            <circle cx="100" cy="100" r="3.4" fill="#0a2830" stroke="#5eebf0" stroke-width="1.15" />
+            <circle cx="100" cy="100" r="1.35" fill="#5eebf0" />
+
+            <!-- Cardinal letters -->
+            <g class="sonar-big-map-compass-letters" fill="#e6f8fa">
+              <text x="100" y="18" text-anchor="middle" dominant-baseline="middle">N</text>
+              <text x="186" y="104" text-anchor="middle" dominant-baseline="middle">E</text>
+              <text x="100" y="188" text-anchor="middle" dominant-baseline="middle">S</text>
+              <text x="14" y="104" text-anchor="middle" dominant-baseline="middle">W</text>
+            </g>
+          </svg>
+        </div>
         <svg class="sonar-big-map-player-arrow" id="bigMapPlayerArrow" viewBox="0 0 24 24" aria-hidden="true">
           <path
             class="sonar-big-map-player-arrow-shape"
@@ -33,6 +178,8 @@
   <script src="../minimap/map-projection.js"></script>
   <script src="../minimap/map-view.js"></script>
   <script src="../minimap/map-fog.js"></script>
+  <script src="../minimap/map-markers.js"></script>
+  <script src="../minimap/map-waypoint.js"></script>
   <script src="../minimap/map-save-pending.js"></script>
   <script src="map-navigation.js"></script>
   <script src="big-map.js"></script>

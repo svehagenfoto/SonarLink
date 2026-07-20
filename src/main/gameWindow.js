@@ -46,6 +46,20 @@ foreach ($n in $names) {
 exit 1
 `;
 
+const PS_GET_PID = `
+$names = @(${PROCESS_NAMES.map((n) => `'${n}'`).join(',')})
+foreach ($n in $names) {
+  $p = Get-Process -Name $n -ErrorAction SilentlyContinue |
+    Where-Object { $_.MainWindowHandle -ne 0 } |
+    Select-Object -First 1
+  if ($p) {
+    Write-Output $p.Id
+    exit 0
+  }
+}
+exit 1
+`;
+
 function getGameWindowBounds() {
   return new Promise((resolve) => {
     execFile(
@@ -93,7 +107,32 @@ function getGameWindowHandle() {
   });
 }
 
+function getGameProcessId() {
+  return new Promise((resolve) => {
+    execFile(
+      'powershell.exe',
+      ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', PS_GET_PID],
+      { windowsHide: true },
+      (err, stdout) => {
+        if (err || !stdout.trim()) {
+          resolve(null);
+          return;
+        }
+
+        const pid = Number(stdout.trim());
+        if (!Number.isFinite(pid) || pid <= 0) {
+          resolve(null);
+          return;
+        }
+
+        resolve(pid);
+      }
+    );
+  });
+}
+
 module.exports = {
   getGameWindowBounds,
   getGameWindowHandle,
+  getGameProcessId,
 };

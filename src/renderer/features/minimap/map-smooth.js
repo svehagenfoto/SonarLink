@@ -25,6 +25,7 @@ function createMapSmoothController(options) {
     fogController = null,
     positionSmoothMs = 300,
     rotationSmoothMs = 250,
+    onViewFrame = null,
   } = options;
 
   let rafId = null;
@@ -32,6 +33,12 @@ function createMapSmoothController(options) {
   let active = false;
   let hasTarget = false;
   let snapNext = true;
+  let lastView = {
+    ...window.SonarMapView.MAP_VIEW,
+    centerU: 0.5,
+    centerV: 0.5,
+    heading: 0,
+  };
 
   const current = { centerU: 0.5, centerV: 0.5, heading: 0 };
   const target = { centerU: 0.5, centerV: 0.5, heading: 0 };
@@ -67,10 +74,12 @@ function createMapSmoothController(options) {
       centerV: current.centerV,
       heading: current.heading,
     };
+    lastView = view;
 
     window.SonarMapView.applyMapViewport(mapImage, core, view);
     window.SonarMapView.applyMapRotation(mapLayer, current.heading);
     fogController?.onViewUpdate(view);
+    onViewFrame?.(view);
   }
 
   function start() {
@@ -112,6 +121,10 @@ function createMapSmoothController(options) {
       hasTarget = false;
       snapNext = true;
       stop();
+    },
+
+    getView() {
+      return lastView;
     },
 
     stop,

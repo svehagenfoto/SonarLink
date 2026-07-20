@@ -18,11 +18,21 @@ let pendingBuffer = null;
 let saveDebounceTimer = null;
 let programmaticApply = false;
 let saveSyncInFlight = false;
+let lastTelemetryLive = false;
+let sessionTaskChain = Promise.resolve();
 
 function configure(deps) {
   runtimeApi = deps;
   currentSettings = getFactoryDefaults();
   activeProfile = buildShellProfile('factory', currentSettings);
+  lastTelemetryLive = false;
+}
+
+function enqueueSessionTask(task) {
+  sessionTaskChain = sessionTaskChain
+    .then(() => task())
+    .catch(() => false);
+  return sessionTaskChain;
 }
 
 function buildShellProfile(mode, settings, meta = {}) {
@@ -74,20 +84,27 @@ function canPersistSettings() {
   return sessionMode === 'world' && appliedSaveId && isInActiveWorld();
 }
 
+function canForcePersistSettings() {
+  return sessionMode === 'world' && Boolean(appliedSaveId);
+}
+
 async function applySettingsToRuntime(settings, meta = {}, mode = sessionMode) {
   if (!runtimeApi?.applySettings) return false;
 
   programmaticApply = true;
-  currentSettings = mergeSettingsWithDefaults(settings);
-  await runtimeApi.applySettings(currentSettings);
-  activeProfile = buildShellProfile(mode, currentSettings, meta);
-  runtimeApi.notifyShell?.(activeProfile);
-  programmaticApply = false;
-  return true;
+  try {
+    currentSettings = mergeSettingsWithDefaults(settings);
+    await runtimeApi.applySettings(currentSettings);
+    activeProfile = buildShellProfile(mode, currentSettings, meta);
+    runtimeApi.notifyShell?.(activeProfile);
+    return true;
+  } finally {
+    programmaticApply = false;
+  }
 }
 
 async function applyFactoryDefaults({ reason } = {}) {
-  await flushPendingSave();
+  await flushPendingSave({ force: true });
   pendingBuffer = null;
   appliedSaveId = null;
   lastHandledSaveFile = null;
@@ -115,7 +132,7 @@ async function applyWorldProfile(saveId, meta = {}) {
 async function enterPendingMode() {
   if (sessionMode === 'pending') return;
 
-  await flushPendingSave();
+  await flushPendingSave({ force: true });
   pendingBuffer = null;
   appliedSaveId = null;
   sessionMode = 'pending';
@@ -135,8 +152,12 @@ function scheduleDebouncedSave() {
   }, SAVE_DEBOUNCE_MS);
 }
 
-function executeSave() {
-  if (!canPersistSettings()) return;
+function executeSave({ force = false } = {}) {
+  if (force) {
+    if (!canForcePersistSettings()) return;
+  } else if (!canPersistSettings()) {
+    return;
+  }
 
   worldSettingsStore.saveSettings(appliedSaveId, currentSettings, {
     saveFile: activeProfile?.saveFile || null,
@@ -145,12 +166,12 @@ function executeSave() {
   runtimeApi?.notifyWorldSettingsListChanged?.();
 }
 
-async function flushPendingSave() {
+async function flushPendingSave({ force = false } = {}) {
   if (!saveDebounceTimer) return;
 
   clearTimeout(saveDebounceTimer);
   saveDebounceTimer = null;
-  executeSave();
+  executeSave({ force });
 }
 
 function onUserSettingsChanged(partial) {
@@ -178,7 +199,7 @@ function onUserSettingsChanged(partial) {
 async function onSaveConfirmed({ saveFile, saveId, saveLabel }) {
   if (!saveFile || !saveId) return false;
 
-  await flushPendingSave();
+  await flushPendingSave({ force: true });
 
   const hadBuffer = hasPendingBuffer();
   if (hadBuffer) {
@@ -196,7 +217,7 @@ async function onSaveConfirmed({ saveFile, saveId, saveLabel }) {
   return true;
 }
 
-async function handleSaveWrite(fileName, isConfirmed) {
+async function runHandleSaveWrite(fileName, isConfirmed) {
   if (!isConfirmed || !fileName || saveSyncInFlight) return false;
 
   const saveId = worldSettingsStore.resolveSaveId({ saveFile: fileName });
@@ -219,22 +240,37 @@ async function handleSaveWrite(fileName, isConfirmed) {
   }
 }
 
+function handleSaveWrite(fileName, isConfirmed) {
+  return enqueueSessionTask(() => runHandleSaveWrite(fileName, isConfirmed));
+}
+
 async function onShellOpened() {
   runtimeApi.notifyShell?.(getShellProfile());
 }
 
-async function onTelemetryUpdate(telemetry) {
+async function runTelemetryUpdate(telemetry) {
   const live = hasLiveTelemetry(telemetry);
 
   if (!live) {
+    if (lastTelemetryLive) {
+      // Leaving an active world: flush debounced world save, drop pending buffer.
+      // Do not factory-reset Customize UI (intentional product rule).
+      if (sessionMode === 'world' && appliedSaveId) {
+        await flushPendingSave({ force: true });
+      }
+      pendingBuffer = null;
+    }
+    lastTelemetryLive = false;
     return;
   }
+
+  lastTelemetryLive = true;
 
   const confirmed = runtimeApi?.isSaveConfirmed?.() === true;
 
   if (!confirmed) {
     if (sessionMode === 'world') {
-      await flushPendingSave();
+      await flushPendingSave({ force: true });
       appliedSaveId = null;
       lastHandledSaveFile = null;
     }
@@ -260,7 +296,11 @@ async function onTelemetryUpdate(telemetry) {
     return;
   }
 
-  await handleSaveWrite(saveFile, true);
+  await runHandleSaveWrite(saveFile, true);
+}
+
+function onTelemetryUpdate(telemetry) {
+  return enqueueSessionTask(() => runTelemetryUpdate(telemetry));
 }
 
 async function syncIfConfirmed() {

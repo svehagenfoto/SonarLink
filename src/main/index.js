@@ -10,12 +10,9 @@ const {
   unregisterAllHotkeys,
   registerThirdPersonMouseBind,
   unregisterThirdPersonHotkey,
-  registerHomeHotkey,
   unregisterHomeHotkey,
   registerHomeKeyPoll,
   unregisterHomeKeyPoll,
-  registerThirdPersonHotkey,
-  registerBigMapHotkey,
   registerBigMapMouseBind,
   unregisterBigMapBind,
 } = require('./win32');
@@ -28,11 +25,12 @@ const { resetAllForTesting } = require('./resetManager');
 const { pruneElectronChromiumCache } = require('./electronCacheCleanup');
 const { registerCrashDiagnostics } = require('./crashLog');
 const { setThirdPersonEnabled, setThirdPersonDistance, compactCommandsFile } = require('./gameBridge');
-const { parseKeyLabel, keyLabelToAccelerator } = require('./keybindParse');
+const { parseKeyLabel, keyLabelToAccelerator, sanitizeFeatureBindKey } = require('./keybindParse');
 const { mapImagePath, sonarLinkImagePath } = require('./paths');
 const mapTelemetry = require('./mapTelemetry');
 const mapFogStore = require('./mapFogStore');
 const mapFogSession = require('./mapFogSession');
+const mapWaypointSession = require('./mapWaypointSession');
 const saveDiscovery = require('./saveDiscovery');
 const worldSettingsSession = require('./worldSettingsSession');
 const worldSettingsStore = require('./worldSettingsStore');
@@ -57,6 +55,7 @@ let minimapEnabled = true;
 let minimapMapBindKey = null;
 let bigMapShortcutKey = null;
 let bigMapToggleLocked = false;
+let featureBindsSuspended = false;
 let mainUiReady = false;
 const THIRD_PERSON_DISTANCE_PREVIEW_MS = 125;
 const SHELL_OPEN_DELAY_MS = 10000;
@@ -146,8 +145,6 @@ function scheduleThirdPersonSync() {
   }
 }
 
-const MOD_NOREPEAT = 0x4000;
-const VK_HOME = 0x24;
 let homeToggleLocked = false;
 
 function onHomePressed() {
@@ -170,6 +167,12 @@ function unregisterShellHomeHotkey() {
   unregisterHomeHotkey();
   unregisterHomeKeyPoll();
   shellHomeHotkeyRegistered = false;
+}
+
+/** Shell Home poll — Home is menu only; features cannot bind it. */
+function syncShellHomeOwnership() {
+  if (!startupComplete) return;
+  registerShellHomeHotkey();
 }
 
 function toggleShellHotkey() {
@@ -242,6 +245,7 @@ function quitApp() {
   unregisterAllHotkeys();
   if (stopWatch) stopWatch();
   stopGameCloseWatch();
+  windows.stopOverlayAwayWatch();
   windows.destroyAllWindows();
   app.exit(0);
 }
@@ -254,6 +258,7 @@ function notifyThirdPersonCameraState() {
 }
 
 function onThirdPersonHotkeyPressed() {
+  if (featureBindsSuspended) return;
   if (!thirdPersonFeatureEnabled) return;
   thirdPersonCameraActive = !thirdPersonCameraActive;
   pushThirdPersonStateToGame(true);
@@ -273,11 +278,12 @@ function unregisterThirdPersonKeyboardShortcut() {
     thirdPersonShortcutKey = null;
   }
   if (startupComplete) {
-    registerShellHomeHotkey();
+    syncShellHomeOwnership();
   }
 }
 
 function onBigMapHotkeyPressed() {
+  if (featureBindsSuspended) return;
   if (bigMapToggleLocked) return;
   bigMapToggleLocked = true;
   setTimeout(() => {
@@ -292,6 +298,50 @@ function onBigMapHotkeyPressed() {
   });
 }
 
+function suspendFeatureKeyboardShortcuts() {
+  if (thirdPersonShortcutKey) {
+    if (thirdPersonShortcutKey === 'Home') {
+      unregisterThirdPersonHotkey();
+    } else {
+      globalShortcut.unregister(thirdPersonShortcutKey);
+    }
+    thirdPersonShortcutKey = null;
+  }
+
+  if (bigMapShortcutKey) {
+    if (bigMapShortcutKey === 'Home') {
+      unregisterBigMapBind();
+    } else {
+      globalShortcut.unregister(bigMapShortcutKey);
+    }
+    bigMapShortcutKey = null;
+  } else {
+    // Mouse big map bind can stay; letter typing does not use it.
+  }
+
+  if (startupComplete) {
+    syncShellHomeOwnership();
+  }
+}
+
+function setFeatureBindsSuspended(suspended) {
+  const next = Boolean(suspended);
+  if (featureBindsSuspended === next) {
+    return { ok: true, suspended: next };
+  }
+
+  featureBindsSuspended = next;
+
+  if (next) {
+    suspendFeatureKeyboardShortcuts();
+  } else {
+    applyThirdPersonBind(thirdPersonBindKey);
+    applyBigMapBind(minimapMapBindKey);
+  }
+
+  return { ok: true, suspended: next };
+}
+
 function unregisterBigMapKeyboardShortcut() {
   if (bigMapShortcutKey) {
     if (bigMapShortcutKey === 'Home') {
@@ -303,65 +353,55 @@ function unregisterBigMapKeyboardShortcut() {
   } else {
     unregisterBigMapBind();
   }
+  if (startupComplete) {
+    syncShellHomeOwnership();
+  }
 }
 
 function applyBigMapBind(keyLabel) {
   unregisterBigMapKeyboardShortcut();
-  minimapMapBindKey = keyLabel || null;
+  const sanitized = sanitizeFeatureBindKey(keyLabel);
+  minimapMapBindKey = sanitized;
 
-  if (!keyLabel) {
-    registerShellHomeHotkey();
-    return { ok: true };
+  if (!sanitized) {
+    syncShellHomeOwnership();
+    return { ok: true, key: null };
   }
 
   if (!minimapEnabled) {
     return { ok: true, key: minimapMapBindKey };
   }
 
-  const parsed = parseKeyLabel(keyLabel);
+  const parsed = parseKeyLabel(sanitized);
   if (!parsed) {
-    return { ok: false, reason: 'INVALID_KEY' };
+    minimapMapBindKey = null;
+    syncShellHomeOwnership();
+    return { ok: false, reason: 'INVALID_KEY', key: null };
   }
 
   if (parsed.type === 'mouse') {
-    registerShellHomeHotkey();
+    syncShellHomeOwnership();
     registerBigMapMouseBind(parsed.vk, onBigMapHotkeyPressed);
     return { ok: true, key: minimapMapBindKey };
   }
 
-  const accelerator = keyLabelToAccelerator(keyLabel);
+  const accelerator = keyLabelToAccelerator(sanitized);
   if (!accelerator) {
-    return { ok: false, reason: 'INVALID_KEY' };
+    minimapMapBindKey = null;
+    syncShellHomeOwnership();
+    return { ok: false, reason: 'INVALID_KEY', key: null };
   }
 
-  if (accelerator === 'Home') {
-    unregisterShellHomeHotkey();
-    const hotkeyWin = windows.getHotkeyWindow();
-    if (!hotkeyWin || hotkeyWin.isDestroyed()) {
-      registerShellHomeHotkey();
-      return { ok: false, reason: 'REGISTER_FAILED' };
-    }
+  syncShellHomeOwnership();
 
-    const ok = registerBigMapHotkey(
-      hotkeyWin,
-      MOD_NOREPEAT,
-      VK_HOME,
-      onBigMapHotkeyPressed,
-    );
-    if (!ok) {
-      registerShellHomeHotkey();
-      return { ok: false, reason: 'REGISTER_FAILED' };
-    }
-
-    bigMapShortcutKey = 'Home';
+  if (featureBindsSuspended) {
     return { ok: true, key: minimapMapBindKey };
   }
 
-  registerShellHomeHotkey();
-
   const ok = globalShortcut.register(accelerator, onBigMapHotkeyPressed);
   if (!ok) {
-    return { ok: false, reason: 'REGISTER_FAILED' };
+    minimapMapBindKey = null;
+    return { ok: false, reason: 'REGISTER_FAILED', key: null };
   }
 
   bigMapShortcutKey = accelerator;
@@ -371,67 +411,54 @@ function applyBigMapBind(keyLabel) {
 function applyThirdPersonBind(keyLabel) {
   unregisterThirdPersonKeyboardShortcut();
   unregisterThirdPersonHotkey();
-  thirdPersonBindKey = keyLabel || null;
+  const sanitized = sanitizeFeatureBindKey(keyLabel);
+  thirdPersonBindKey = sanitized;
 
-  if (!keyLabel) {
-    registerShellHomeHotkey();
+  if (!sanitized) {
+    syncShellHomeOwnership();
     if (thirdPersonFeatureEnabled) {
       thirdPersonCameraActive = true;
       pushThirdPersonStateToGame(true);
       notifyThirdPersonCameraState();
     }
-    return { ok: true };
+    return { ok: true, key: null };
   }
 
-  const parsed = parseKeyLabel(keyLabel);
+  const parsed = parseKeyLabel(sanitized);
   if (!parsed) {
-    return { ok: false, reason: 'INVALID_KEY' };
+    thirdPersonBindKey = null;
+    syncShellHomeOwnership();
+    return { ok: false, reason: 'INVALID_KEY', key: null };
   }
 
   if (parsed.type === 'mouse') {
-    registerShellHomeHotkey();
+    syncShellHomeOwnership();
     registerThirdPersonMouseBind(parsed.vk, onThirdPersonHotkeyPressed);
-    return { ok: true };
+    return { ok: true, key: sanitized };
   }
 
-  const accelerator = keyLabelToAccelerator(keyLabel);
+  const accelerator = keyLabelToAccelerator(sanitized);
   if (!accelerator) {
-    return { ok: false, reason: 'INVALID_KEY' };
+    thirdPersonBindKey = null;
+    syncShellHomeOwnership();
+    return { ok: false, reason: 'INVALID_KEY', key: null };
   }
 
-  if (accelerator === 'Home') {
-    unregisterShellHomeHotkey();
-    const hotkeyWin = windows.getHotkeyWindow();
-    if (!hotkeyWin || hotkeyWin.isDestroyed()) {
-      registerShellHomeHotkey();
-      return { ok: false, reason: 'REGISTER_FAILED' };
-    }
+  syncShellHomeOwnership();
 
-    const ok = registerThirdPersonHotkey(
-      hotkeyWin,
-      MOD_NOREPEAT,
-      VK_HOME,
-      onThirdPersonHotkeyPressed,
-    );
-    if (!ok) {
-      registerShellHomeHotkey();
-      return { ok: false, reason: 'REGISTER_FAILED' };
-    }
-
-    thirdPersonShortcutKey = 'Home';
-    return { ok: true };
+  if (featureBindsSuspended) {
+    return { ok: true, key: sanitized };
   }
-
-  registerShellHomeHotkey();
 
   const ok = globalShortcut.register(accelerator, onThirdPersonHotkeyPressed);
   if (!ok) {
-    registerShellHomeHotkey();
-    return { ok: false, reason: 'REGISTER_FAILED' };
+    thirdPersonBindKey = null;
+    syncShellHomeOwnership();
+    return { ok: false, reason: 'REGISTER_FAILED', key: null };
   }
 
   thirdPersonShortcutKey = accelerator;
-  return { ok: true };
+  return { ok: true, key: sanitized };
 }
 
 async function applyCustomizeSettings(settings) {
@@ -444,7 +471,7 @@ async function applyCustomizeSettings(settings) {
   thirdPersonCameraActive = thirdPerson.cameraActive !== false;
   thirdPersonCameraDistance = clampCameraDistance(thirdPerson.cameraDistance);
 
-  applyThirdPersonBind(thirdPerson.bindKey || null);
+  applyThirdPersonBind(sanitizeFeatureBindKey(thirdPerson.bindKey) || null);
   pushThirdPersonStateToGame(true);
   notifyThirdPersonCameraState();
 
@@ -464,7 +491,7 @@ async function applyCustomizeSettings(settings) {
     minimap.mapSizePercent ?? windows.getMinimapSizeState().percent,
     { reposition: true },
   );
-  applyBigMapBind(minimap.mapBindKey || null);
+  applyBigMapBind(sanitizeFeatureBindKey(minimap.mapBindKey) || null);
 }
 
 function broadcastCustomizeProfileChanged(profile) {
@@ -554,15 +581,21 @@ async function launchMainApp() {
   }
 
   windows.prepareMinimap();
+  windows.prepareVersionOverlay();
+  void windows.prepareBigMap();
   await windows.applyMinimapSize(windows.getMinimapSizeState().percent, { reposition: true });
 
   await windows.showShell();
   if (minimapEnabled) {
     await windows.showMinimap();
   }
+  await windows.showVersionOverlay();
   await waitForShellVisible(shell);
   await worldSettingsSession.onShellOpened();
   mainUiReady = true;
+  windows.startOverlayAwayWatch({
+    getMinimapEnabled: () => minimapEnabled,
+  });
   mapTelemetry.startMapTelemetryWatcher(getMapTelemetryTargets);
   configureMapTelemetrySideEffects();
   void worldSettingsSession.syncIfConfirmed();
@@ -602,6 +635,9 @@ async function waitForStartupWindowReady() {
 
 async function beginStartupFlow() {
   windows.setShellToggleHandler(toggleShellHotkey);
+  windows.setBigMapHiddenHandler(() => {
+    setFeatureBindsSuspended(false);
+  });
   windows.createHotkeyWindow();
   windows.createStartupWindow();
   createTray({ onRestart: restartApp, onQuit: quitApp });
@@ -692,6 +728,20 @@ ipcMain.handle('get-map-telemetry', () => mapTelemetry.readTelemetry());
 
 ipcMain.handle('get-map-fog-session', () => mapFogSession.getSession());
 
+ipcMain.handle('get-map-waypoint', () => mapWaypointSession.getWaypoint());
+
+ipcMain.handle('set-map-waypoint', (_event, payload) => {
+  const next = mapWaypointSession.setWaypoint(payload);
+  broadcastMapWaypointUpdate();
+  return next;
+});
+
+ipcMain.handle('clear-map-waypoint', () => {
+  mapWaypointSession.clearWaypoint();
+  broadcastMapWaypointUpdate();
+  return null;
+});
+
 ipcMain.handle('push-map-fog-session', (_event, payload) => {
   if (payload === null) {
     mapFogSession.clearSession();
@@ -720,6 +770,20 @@ function broadcastMapFogSavesChanged() {
   }
 }
 
+function sessionMatchesFogSaveId(saveId) {
+  if (!saveId) return false;
+  const session = mapFogSession.getSession();
+  if (!session?.saveFile) return false;
+  const sessionSaveId = mapFogStore.resolveSaveId({ saveFile: session.saveFile });
+  return sessionSaveId === saveId;
+}
+
+function clearFogSessionIfSaveDeleted(saveId) {
+  if (sessionMatchesFogSaveId(saveId)) {
+    mapFogSession.clearSession();
+  }
+}
+
 function broadcastMapFogDeleted(saveId) {
   const minimap = windows.getMinimapWindow();
   if (minimap && !minimap.isDestroyed()) {
@@ -731,8 +795,40 @@ function broadcastMapFogSessionUpdate() {
   const payload = mapFogSession.getSession();
 
   const bigMap = windows.getBigMapWindow();
-  if (bigMap && !bigMap.isDestroyed() && bigMap.isVisible()) {
+  // Keep hidden world map warm so first open does not rebuild fog/layout on screen.
+  if (bigMap && !bigMap.isDestroyed()) {
     bigMap.webContents.send('map-fog-session-update', payload);
+  }
+}
+
+function broadcastMapWaypointUpdate() {
+  const payload = mapWaypointSession.getWaypoint();
+
+  const bigMap = windows.getBigMapWindow();
+  if (bigMap && !bigMap.isDestroyed()) {
+    bigMap.webContents.send('map-waypoint-update', payload);
+  }
+
+  const minimap = windows.getMinimapWindow();
+  if (minimap && !minimap.isDestroyed()) {
+    minimap.webContents.send('map-waypoint-update', payload);
+  }
+}
+
+function broadcastMapMarkersUpdate(markers, saveId = null) {
+  const payload = {
+    saveId: saveId || null,
+    markers: Array.isArray(markers) ? markers : [],
+  };
+
+  const bigMap = windows.getBigMapWindow();
+  if (bigMap && !bigMap.isDestroyed()) {
+    bigMap.webContents.send('map-markers-update', payload);
+  }
+
+  const minimap = windows.getMinimapWindow();
+  if (minimap && !minimap.isDestroyed()) {
+    minimap.webContents.send('map-markers-update', payload);
   }
 }
 
@@ -842,14 +938,40 @@ ipcMain.handle('get-map-fog-save', (_event, saveId, hints) => mapFogStore.getFog
 ipcMain.handle('save-map-fog-save', (_event, saveId, data) => {
   const saved = mapFogStore.saveFogData(saveId, data);
   if (saved) {
+    if (Object.prototype.hasOwnProperty.call(data || {}, 'markers')) {
+      mapFogSession.setMarkers(saved.markers);
+      broadcastMapMarkersUpdate(saved.markers, saveId);
+    }
     broadcastMapFogSavesChanged();
   }
   return saved;
 });
 
+ipcMain.handle('save-map-markers', (_event, saveId, markers) => {
+  if (!saveId) return null;
+
+  const saved = mapFogStore.saveMapMarkers(saveId, markers);
+  if (!saved) return null;
+
+  const session = mapFogSession.getSession();
+  const sessionSaveId = session?.saveFile
+    ? mapFogStore.resolveSaveId({ saveFile: session.saveFile })
+    : null;
+
+  // Only update live session when it belongs to this save.
+  if (!sessionSaveId || sessionSaveId === saveId) {
+    mapFogSession.setMarkers(saved.markers);
+  }
+
+  broadcastMapMarkersUpdate(saved.markers, saveId);
+  broadcastMapFogSavesChanged();
+  return saved.markers;
+});
+
 ipcMain.handle('delete-map-fog-save', (_event, saveId) => {
   const result = mapFogStore.deleteFogSave(saveId);
   if (result?.ok) {
+    clearFogSessionIfSaveDeleted(saveId);
     broadcastMapFogSavesChanged();
     broadcastMapFogDeleted(saveId);
     broadcastMapFogSessionUpdate();
@@ -865,6 +987,9 @@ ipcMain.handle('delete-orphan-map-fog-saves', () => {
   const result = mapFogStore.deleteOrphanFogSaves(active?.saveId || null);
 
   if (result.deleted > 0) {
+    for (const saveId of result.deletedIds) {
+      clearFogSessionIfSaveDeleted(saveId);
+    }
     broadcastMapFogSavesChanged();
     for (const saveId of result.deletedIds) {
       broadcastMapFogDeleted(saveId);
@@ -986,7 +1111,7 @@ ipcMain.handle('set-third-person-bind', (_event, keyLabel) => {
   const result = applyThirdPersonBind(label);
   if (result?.ok !== false) {
     worldSettingsSession.onUserSettingsChanged({
-      thirdPerson: { bindKey: label },
+      thirdPerson: { bindKey: result.key ?? null },
     });
   }
   return result;
@@ -1035,16 +1160,21 @@ ipcMain.handle('set-minimap-map-bind', (_event, keyLabel) => {
   const result = applyBigMapBind(label);
   if (result?.ok !== false) {
     worldSettingsSession.onUserSettingsChanged({
-      minimap: { mapBindKey: label },
+      minimap: { mapBindKey: result.key ?? null },
     });
   }
   return result;
 });
 
 ipcMain.handle('hide-big-map', async () => {
+  setFeatureBindsSuspended(false);
   await windows.hideBigMap();
   return { ok: true };
 });
+
+ipcMain.handle('set-feature-binds-suspended', (_event, suspended) => (
+  setFeatureBindsSuspended(suspended)
+));
 
 ipcMain.on('window-minimize', (event) => {
   const win = BrowserWindow.fromWebContents(event.sender);

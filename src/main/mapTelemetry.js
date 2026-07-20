@@ -28,10 +28,22 @@ function readRawTelemetry() {
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (parsed.active !== true) {
-      return { active: false, ts: parsed.ts, restartId: parsed.restartId };
+      const reason = typeof parsed.reason === 'string' ? parsed.reason : undefined;
+      return {
+        active: false,
+        ts: parsed.ts,
+        restartId: parsed.restartId,
+        ...(reason ? { reason } : {}),
+      };
     }
     if (!Number.isFinite(parsed.x) || !Number.isFinite(parsed.y)) {
-      return { active: false, ts: parsed.ts, restartId: parsed.restartId };
+      const reason = typeof parsed.reason === 'string' ? parsed.reason : undefined;
+      return {
+        active: false,
+        ts: parsed.ts,
+        restartId: parsed.restartId,
+        ...(reason ? { reason } : {}),
+      };
     }
     return parsed;
   } catch {
@@ -49,7 +61,9 @@ function readTelemetry() {
 }
 
 function buildSignature(data) {
-  if (data.active === false) return 'inactive';
+  if (!data || data.active === false) {
+    return `inactive|${data?.reason || ''}`;
+  }
   return [
     data.x,
     data.y,

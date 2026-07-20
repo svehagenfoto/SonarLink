@@ -154,9 +154,25 @@ function keyLabelToAccelerator(label) {
   return acceleratorParts.join('+');
 }
 
+/** Home is reserved for the SonarLink menu and cannot be used as a feature bind. */
+function isReservedHomeBind(label) {
+  if (!label || typeof label !== 'string') return false;
+  const parts = label.trim().toUpperCase().split('+').map((part) => part.trim());
+  return parts.includes('HOME');
+}
+
+function sanitizeFeatureBindKey(label) {
+  if (!label || typeof label !== 'string') return null;
+  const trimmed = label.trim();
+  if (!trimmed || isReservedHomeBind(trimmed)) return null;
+  return trimmed;
+}
+
 module.exports = {
   parseKeyLabel,
   keyLabelToAccelerator,
+  isReservedHomeBind,
+  sanitizeFeatureBindKey,
   MOUSE_BIND_KEYS,
   BLOCKED_MOUSE_BIND_KEYS,
 };

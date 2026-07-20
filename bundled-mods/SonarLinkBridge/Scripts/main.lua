@@ -5,7 +5,7 @@ local CommandBridge = require("commandBridge")
 local ThirdPersonCamera = require("thirdPersonCamera")
 local MapTelemetry = require("mapTelemetry")
 
-local BRIDGE_VERSION = "1.9.26"
+local BRIDGE_VERSION = "1.9.28"
 local MAIN_POLL_MS = 500
 local RESTART_SETTLE_DELAY_MS = 1500
 local RESTART_COMMAND_DELAY_MS = 6000

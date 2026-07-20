@@ -118,6 +118,10 @@ class KeybindKnapp {
     const label = formatKeyLabel(event);
     if (!label) return;
 
+    // Home is reserved for the SonarLink menu.
+    const parts = label.split('+').map((part) => part.trim().toUpperCase());
+    if (parts.includes('HOME')) return;
+
     this.boundKey = label;
     this.setState('bound');
     this.stopListening();

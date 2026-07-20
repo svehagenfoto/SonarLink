@@ -4,6 +4,9 @@
 
 const ZOOM_MIN_VISIBLE_WIDTH = 900;
 const ZOOM_MAX_VISIBLE_WIDTH = 14000;
+const DRAG_THRESHOLD_PX = 12;
+const DOUBLE_CLICK_MS = 700;
+const DOUBLE_CLICK_PX = 40;
 
 function clampVisibleWidth(value) {
   return Math.max(ZOOM_MIN_VISIBLE_WIDTH, Math.min(ZOOM_MAX_VISIBLE_WIDTH, value));
@@ -27,10 +30,16 @@ function createMapNavigation(options) {
     getView,
     setView,
     onViewChange,
+    onSingleClick,
+    onDoubleClick,
   } = options;
 
+  let pending = null;
   let dragging = false;
-  let dragStart = null;
+  let significantDrag = false;
+  let lastTapAt = 0;
+  let lastTapX = 0;
+  let lastTapY = 0;
 
   function updateView(nextView) {
     setView(nextView);
@@ -44,39 +53,106 @@ function createMapNavigation(options) {
     const view = getView();
     if (!view) return;
 
-    dragging = true;
-    dragStart = {
+    // Do not preventDefault on down — keeps click counting intact.
+    // Pan starts only after the cursor moves past DRAG_THRESHOLD_PX.
+    pending = {
       x: event.clientX,
       y: event.clientY,
       centerU: view.centerU,
       centerV: view.centerV,
     };
-    viewport.classList.add('is-dragging');
-    event.preventDefault();
+    dragging = false;
+    significantDrag = false;
   }
 
   function onMouseMove(event) {
-    if (!dragging || !dragStart) return;
+    if (!pending) return;
+
+    const moveX = event.clientX - pending.x;
+    const moveY = event.clientY - pending.y;
+
+    if (!dragging) {
+      if (
+        Math.abs(moveX) <= DRAG_THRESHOLD_PX &&
+        Math.abs(moveY) <= DRAG_THRESHOLD_PX
+      ) {
+        return;
+      }
+      dragging = true;
+      significantDrag = true;
+      viewport.classList.add('is-dragging');
+    }
+
+    event.preventDefault();
 
     const view = getView();
     const mapSize = getMapPixelSize(viewport, view);
     if (!view || !mapSize?.width || !mapSize?.height) return;
 
-    const deltaU = -(event.clientX - dragStart.x) / mapSize.width;
-    const deltaV = -(event.clientY - dragStart.y) / mapSize.height;
+    const deltaU = -moveX / mapSize.width;
+    const deltaV = -moveY / mapSize.height;
 
     updateView({
       ...view,
-      centerU: dragStart.centerU + deltaU,
-      centerV: dragStart.centerV + deltaV,
+      centerU: pending.centerU + deltaU,
+      centerV: pending.centerV + deltaV,
     });
   }
 
-  function stopDragging() {
-    if (!dragging) return;
+  function clearPending() {
+    pending = null;
     dragging = false;
-    dragStart = null;
     viewport.classList.remove('is-dragging');
+  }
+
+  function onMouseUp(event) {
+    if (event.button !== 0) {
+      clearPending();
+      return;
+    }
+
+    const hadPending = Boolean(pending);
+    const wasDrag = significantDrag;
+    const tapX = event.clientX;
+    const tapY = event.clientY;
+    clearPending();
+    significantDrag = false;
+
+    if (!hadPending || wasDrag) {
+      lastTapAt = 0;
+      return;
+    }
+
+    const now = Date.now();
+    const dt = now - lastTapAt;
+    const dist = Math.hypot(tapX - lastTapX, tapY - lastTapY);
+    const isDouble =
+      lastTapAt > 0 &&
+      dt <= DOUBLE_CLICK_MS &&
+      dist <= DOUBLE_CLICK_PX;
+
+    if (isDouble) {
+      lastTapAt = 0;
+      onDoubleClick?.({ clientX: tapX, clientY: tapY });
+      return;
+    }
+
+    lastTapAt = now;
+    lastTapX = tapX;
+    lastTapY = tapY;
+    onSingleClick?.({ clientX: tapX, clientY: tapY });
+  }
+
+  function onBlur() {
+    clearPending();
+    significantDrag = false;
+    // Keep lastTapAt — a brief focus blip must not cancel double click.
+  }
+
+  function consumeSignificantDrag() {
+    const value = significantDrag;
+    significantDrag = false;
+    return value;
   }
 
   function onWheel(event) {
@@ -94,20 +170,21 @@ function createMapNavigation(options) {
   viewport.addEventListener('mousedown', onMouseDown);
   viewport.addEventListener('wheel', onWheel, { passive: false });
   window.addEventListener('mousemove', onMouseMove);
-  window.addEventListener('mouseup', stopDragging);
-  window.addEventListener('blur', stopDragging);
+  window.addEventListener('mouseup', onMouseUp);
+  window.addEventListener('blur', onBlur);
 
   function destroy() {
     viewport.removeEventListener('mousedown', onMouseDown);
     viewport.removeEventListener('wheel', onWheel);
     window.removeEventListener('mousemove', onMouseMove);
-    window.removeEventListener('mouseup', stopDragging);
-    window.removeEventListener('blur', stopDragging);
-    stopDragging();
+    window.removeEventListener('mouseup', onMouseUp);
+    window.removeEventListener('blur', onBlur);
+    clearPending();
   }
 
   return {
     updateView,
+    consumeSignificantDrag,
     destroy,
   };
 }

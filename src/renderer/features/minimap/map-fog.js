@@ -23,7 +23,7 @@ function createFogController(options) {
 
   const ctx = canvas.getContext('2d');
   const revealed = new Uint8Array(FOG_GRID_WIDTH * FOG_GRID_HEIGHT);
-  const revealStamps = [];
+  let lastRevealStamp = null;
   let lastTelemetrySample = null;
 
   function getViewportSize() {
@@ -161,11 +161,10 @@ function createFogController(options) {
   }
 
   function shouldAddStamp(telemetry) {
-    if (!revealStamps.length) return true;
+    if (!lastRevealStamp) return true;
 
-    const last = revealStamps[revealStamps.length - 1];
-    const dx = telemetry.x - last.x;
-    const dy = telemetry.y - last.y;
+    const dx = telemetry.x - lastRevealStamp.x;
+    const dy = telemetry.y - lastRevealStamp.y;
     const minWorldSq = REVEAL_STAMP_MIN_WORLD * REVEAL_STAMP_MIN_WORLD;
     return (dx * dx) + (dy * dy) >= minWorldSq;
   }
@@ -198,6 +197,12 @@ function createFogController(options) {
 
     const ts = Number.isFinite(telemetry.ts) ? telemetry.ts : Date.now();
     const plausible = isPlausibleStep(telemetry);
+    if (!plausible) {
+      // Drop the anchor so the next sample can re-seed.
+      // Do not store the rejected point (that poisoned speed checks before).
+      lastTelemetrySample = null;
+      return false;
+    }
 
     lastTelemetrySample = {
       x: telemetry.x,
@@ -205,20 +210,20 @@ function createFogController(options) {
       ts,
     };
 
-    if (!plausible || !shouldAddStamp(telemetry)) {
+    if (!shouldAddStamp(telemetry)) {
       return false;
     }
 
     const u = view.centerU;
     const v = view.centerV;
-    revealStamps.push({ u, v, x: telemetry.x, y: telemetry.y });
+    lastRevealStamp = { u, v, x: telemetry.x, y: telemetry.y };
     markRevealAtUV(u, v);
     return true;
   }
 
   function reset() {
     revealed.fill(0);
-    revealStamps.length = 0;
+    lastRevealStamp = null;
     lastTelemetrySample = null;
     resize();
     fillFogBackground();
@@ -245,7 +250,7 @@ function createFogController(options) {
 
   function importState(data) {
     revealed.fill(0);
-    revealStamps.length = 0;
+    lastRevealStamp = null;
     lastTelemetrySample = null;
 
     if (!data?.revealed) {

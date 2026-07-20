@@ -18,6 +18,7 @@ let confirmedThisSession = false;
 let confirmedSaveFile = null;
 let lastSeenRestartId = null;
 let lastTelemetryLiveAt = 0;
+let inactiveSince = 0;
 let saveWatcher = null;
 let onSaveChange = null;
 const displayNameCache = new Map();
@@ -97,18 +98,23 @@ function noteRestartId(restartId) {
     lastSeenRestartId = restartId;
 
     // Vehicle enter/exit and respawn fire ClientRestart and bump restartId.
-    // Only treat as a new world after sustained absence from live telemetry.
+    // Hold confirm for the same world during that blip window.
+    // A real world switch is handled when a *different* .sav is written (tryConfirmSaveWrite).
     const recentlyLive = Date.now() - lastTelemetryLiveAt < SESSION_BLIP_MS;
     if (confirmedThisSession && recentlyLive) {
       invalidateCache();
       return;
     }
 
-    confirmedThisSession = false;
-    confirmedSaveFile = null;
-    awaitingSaveSince = Date.now();
+    clearConfirmedSave({ awaitNewWrite: true });
     invalidateCache();
   }
+}
+
+function clearConfirmedSave({ awaitNewWrite = false } = {}) {
+  confirmedThisSession = false;
+  confirmedSaveFile = null;
+  awaitingSaveSince = awaitNewWrite ? Date.now() : 0;
 }
 
 function setTelemetryLive(isLive) {
@@ -116,16 +122,26 @@ function setTelemetryLive(isLive) {
 
   if (isLive) {
     lastTelemetryLiveAt = Date.now();
+    // Retry watcher if SaveGames did not exist at first startSaveWatcher call.
+    startSaveWatcher();
   }
 
   if (isLive && !wasLive) {
-    if (!confirmedThisSession) {
+    const inactiveMs = inactiveSince ? Date.now() - inactiveSince : 0;
+    inactiveSince = 0;
+
+    // Sustained leave (menu / other world) past blip window: drop old confirm.
+    // Shorter gaps keep confirm (vehicle enter/exit).
+    if (confirmedThisSession && inactiveMs >= SESSION_BLIP_MS) {
+      clearConfirmedSave({ awaitNewWrite: true });
+    } else if (!confirmedThisSession) {
       awaitingSaveSince = Date.now();
     }
     invalidateCache();
   }
 
   if (!isLive && wasLive) {
+    inactiveSince = Date.now();
     invalidateCache();
   }
 
@@ -177,12 +193,13 @@ function pickNewestSave(saves) {
 function pickActiveSave(saves) {
   if (!saves.length) return null;
 
-  if (confirmedThisSession) {
-    if (confirmedSaveFile) {
-      const match = saves.find((save) => save.fileName === confirmedSaveFile);
-      if (match) return match;
-    }
-    return pickNewestSave(saves);
+  if (confirmedThisSession && confirmedSaveFile) {
+    const match = saves.find((save) => save.fileName === confirmedSaveFile);
+    if (match) return match;
+
+    // B23: confirmed file missing — do not fall back to newest save.
+    clearConfirmedSave({ awaitNewWrite: telemetryLive });
+    return null;
   }
 
   return null;
@@ -203,6 +220,9 @@ function discoverActiveSave(force = false) {
       cachedAt = now;
       return confirmed;
     }
+
+    // B23: confirmed path unreadable — clear, never pick newest silently.
+    clearConfirmedSave({ awaitNewWrite: telemetryLive });
   }
 
   const saves = scanSaveFiles();
@@ -222,10 +242,6 @@ function tryConfirmSaveWrite(fileName) {
     return true;
   }
 
-  if (!awaitingSaveSince) {
-    return false;
-  }
-
   const dir = getSaveGamesDir();
   if (!dir) return false;
 
@@ -236,6 +252,25 @@ function tryConfirmSaveWrite(fileName) {
   try {
     mtimeMs = fs.statSync(filePath).mtimeMs;
   } catch {
+    return false;
+  }
+
+  // B11: A different .sav write while already confirmed is a world switch, not a vehicle blip.
+  // Vehicle blips keep writing the same confirmed file.
+  if (confirmedThisSession && confirmedSaveFile && confirmedSaveFile !== fileName) {
+    const switchCutoff = Date.now() - SESSION_BLIP_MS;
+    if (mtimeMs < switchCutoff) {
+      return false;
+    }
+
+    confirmedThisSession = true;
+    confirmedSaveFile = fileName;
+    awaitingSaveSince = 0;
+    invalidateCache();
+    return true;
+  }
+
+  if (!awaitingSaveSince) {
     return false;
   }
 
@@ -315,9 +350,11 @@ function getConfirmedSaveFile() {
 }
 
 function startSaveWatcher(callback) {
+  if (typeof callback === 'function') {
+    onSaveChange = callback;
+  }
   if (saveWatcher) return;
 
-  onSaveChange = callback;
   const dir = getSaveGamesDir();
   if (!dir || !fs.existsSync(dir)) return;
 

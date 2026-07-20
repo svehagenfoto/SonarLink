@@ -57,6 +57,33 @@ function worldToMapUV(worldX, worldY) {
   return { u, v };
 }
 
+function inverseMercatorY(mercY) {
+  const n = Math.PI * (1 - 2 * mercY);
+  return (Math.atan(Math.sinh(n)) * 180) / Math.PI;
+}
+
+function mapUVToWorld(u, v) {
+  const projection = getProjection();
+  if (!projection.valid) return null;
+  if (!Number.isFinite(u) || !Number.isFinite(v)) return null;
+  if (u < 0 || u > 1 || v < 0 || v > 1) return null;
+
+  const lng =
+    projection.west + u * (MAP_GENIE.boundsEast - MAP_GENIE.boundsWest);
+  const mercY =
+    projection.top +
+    v * (mercatorY(MAP_GENIE.boundsSouth) - mercatorY(MAP_GENIE.boundsNorth));
+  const lat = inverseMercatorY(mercY);
+
+  if (!Number.isFinite(lng) || !Number.isFinite(lat)) return null;
+  if (!MAP_GENIE.lngFromXScale || !MAP_GENIE.latFromYScale) return null;
+
+  return {
+    x: (lng - MAP_GENIE.lngFromXOffset) / MAP_GENIE.lngFromXScale,
+    y: (lat - MAP_GENIE.latFromYOffset) / MAP_GENIE.latFromYScale,
+  };
+}
+
 function headingFromForward(forwardX, forwardY) {
   return (Math.atan2(forwardY, forwardX) * 180) / Math.PI;
 }
@@ -74,6 +101,7 @@ function arrowRotationFromHeading(heading) {
 
 window.SonarMapProjection = {
   worldToMapUV,
+  mapUVToWorld,
   headingFromForward,
   mapRotationFromHeading,
   arrowRotationFromHeading,

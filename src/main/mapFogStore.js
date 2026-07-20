@@ -5,6 +5,31 @@ const { getDataRoot } = require('./configStore');
 
 const FOG_FILE_VERSION = 1;
 const SAVEGAME_PATTERN = /^savegame_(\d+)\.sav$/i;
+const MARKER_COLOR_IDS = new Set(['cyan', 'warm', 'green', 'blue', 'coral']);
+
+function normalizeMarkers(raw) {
+  if (!Array.isArray(raw)) return [];
+
+  const out = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+
+    const id = typeof item.id === 'string' && item.id.trim() ? item.id.trim() : null;
+    const u = Number(item.u);
+    const v = Number(item.v);
+    if (!id || !Number.isFinite(u) || !Number.isFinite(v)) continue;
+    if (u < 0 || u > 1 || v < 0 || v > 1) continue;
+
+    const colorId = MARKER_COLOR_IDS.has(item.colorId) ? item.colorId : 'cyan';
+    const name = typeof item.name === 'string' ? item.name.slice(0, 64) : '';
+    const createdAt = Number.isFinite(item.createdAt) ? item.createdAt : Date.now();
+    const updatedAt = Number.isFinite(item.updatedAt) ? item.updatedAt : createdAt;
+
+    out.push({ id, u, v, name, colorId, createdAt, updatedAt });
+  }
+
+  return out;
+}
 
 function hashSaveKey(value) {
   return crypto.createHash('sha256').update(String(value)).digest('hex').slice(0, 16);
@@ -88,8 +113,29 @@ function writeFogFile(payload) {
   if (!filePath) return false;
 
   ensureFogDir();
-  fs.writeFileSync(filePath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
-  return true;
+  const tmpPath = `${filePath}.${process.pid}.tmp`;
+
+  try {
+    fs.writeFileSync(tmpPath, `${JSON.stringify(payload)}\n`, 'utf8');
+    try {
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    } catch {
+      // ignore missing target before rename
+    }
+    fs.renameSync(tmpPath, filePath);
+    return true;
+  } catch {
+    try {
+      if (fs.existsSync(tmpPath)) {
+        fs.unlinkSync(tmpPath);
+      }
+    } catch {
+      // ignore cleanup failure
+    }
+    return false;
+  }
 }
 
 function migrateLegacyFogRecord(saveId, hints = {}) {
@@ -164,6 +210,7 @@ function ensureSaveRegistered(telemetry) {
     gridHeight: 48,
     revealed: null,
     exploredPercent: 0,
+    markers: [],
     createdAt: now,
     updatedAt: now,
   };
@@ -187,25 +234,38 @@ function saveFogData(saveId, data) {
     saveLabel: data.saveLabel || saveId,
     gridWidth: 114,
     gridHeight: 48,
+    markers: [],
     createdAt: Date.now(),
   };
 
   const exploredPercent = Number.isFinite(data.exploredPercent)
     ? data.exploredPercent
-    : countExploredPercent(data.revealed);
+    : countExploredPercent(
+      data.revealed !== undefined ? data.revealed : existing.revealed,
+    );
+
+  const markers = Object.prototype.hasOwnProperty.call(data, 'markers')
+    ? normalizeMarkers(data.markers)
+    : normalizeMarkers(existing.markers);
 
   const payload = {
     ...existing,
     saveLabel: data.saveLabel || existing.saveLabel,
     gridWidth: data.gridWidth || existing.gridWidth || 114,
     gridHeight: data.gridHeight || existing.gridHeight || 48,
-    revealed: data.revealed ?? existing.revealed,
+    revealed: data.revealed !== undefined ? data.revealed : existing.revealed,
     exploredPercent,
+    markers,
     updatedAt: Date.now(),
   };
 
   if (!writeFogFile(payload)) return null;
   return payload;
+}
+
+function saveMapMarkers(saveId, markers) {
+  if (!saveId) return null;
+  return saveFogData(saveId, { markers: normalizeMarkers(markers) });
 }
 
 function getSaveGamesDir() {
@@ -333,6 +393,8 @@ module.exports = {
   listFogSavesWithOrphanFlags,
   getFogRecord,
   saveFogData,
+  saveMapMarkers,
+  normalizeMarkers,
   deleteFogSave,
   deleteOrphanFogSaves,
   ensureSaveRegistered,

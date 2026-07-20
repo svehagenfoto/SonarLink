@@ -20,7 +20,7 @@ const DEPENDENCIES = [
   },
   {
     id: 'sonarlink-bridge',
-    version: '1.9.26',
+    version: '1.9.28',
     installType: 'copy-bundled-mod',
     bundledRelativePath: path.join('bundled-mods', 'SonarLinkBridge'),
     gameRelativePath: path.join('ue4ss', 'Mods', 'SonarLinkBridge'),

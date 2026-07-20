@@ -5,7 +5,7 @@ local UEHelpers = require("UEHelpers")
 
 local MapTelemetry = {}
 
-local VERSION = "1.9.23"
+local VERSION = "1.9.28"
 local TELEMETRY_FILE = nil
 local MOD_DIR = debug.getinfo(1, "S").source:match("@?(.*[\\/])") or ""
 local SUSPEND_AFTER_RESTART_S = 4.0
@@ -17,6 +17,7 @@ local HEADING_EPSILON = 0.01
 
 local suspendedUntil = 0
 local lastInactiveWriteAt = 0
+local lastInactiveReason = nil
 local lastClassRefreshAt = 0
 local lastClassName = nil
 local wasActive = false
@@ -148,6 +149,39 @@ local function readAxisPair(vec)
   return { x = x, y = y }
 end
 
+-- Write full JSON via temp file then rename to avoid Node reading a truncated file.
+local function writeFileAtomic(filePath, content)
+  local tmpPath = filePath .. ".tmp"
+  local f = io.open(tmpPath, "wb")
+  if not f then return false end
+  f:write(content)
+  f:close()
+
+  pcall(function()
+    os.remove(filePath)
+  end)
+
+  local renamed = os.rename(tmpPath, filePath)
+  if renamed then
+    return true
+  end
+
+  -- Fallback: direct write if rename failed on this platform.
+  local f2 = io.open(filePath, "wb")
+  if not f2 then
+    pcall(function()
+      os.remove(tmpPath)
+    end)
+    return false
+  end
+  f2:write(content)
+  f2:close()
+  pcall(function()
+    os.remove(tmpPath)
+  end)
+  return true
+end
+
 local function resolvePlayablePawn()
   local pc = UEHelpers.GetPlayerController()
   if not isObjectValid(pc) then return nil end
@@ -165,19 +199,34 @@ local function resolvePlayablePawn()
   if not isObjectValid(pawn) then return nil end
 
   local now = os.clock()
+  local needRefresh = (lastClassName == nil) or ((now - lastClassRefreshAt) >= CLASS_REFRESH_INTERVAL_S)
   local className = lastClassName
-  if not className or (now - lastClassRefreshAt) >= CLASS_REFRESH_INTERVAL_S then
+
+  if needRefresh then
     className = readClassName(pawn)
     lastClassRefreshAt = now
-  end
 
-  if not isPlayableClass(className) then return nil end
-
-  if className ~= lastClassName then
-    if lastClassName ~= nil then
-      suspendFor(SUSPEND_AFTER_CLASS_CHANGE_S)
+    -- Always store the refreshed name (including blocked). Never keep a stale playable cache.
+    if not isPlayableClass(className) then
+      lastClassName = className
+      pendingPosition = nil
+      return nil
     end
-    lastClassName = className
+
+    if className ~= lastClassName then
+      if lastClassName ~= nil and isPlayableClass(lastClassName) then
+        -- Playable -> playable swap: clear stale coords and go inactive for the suspend window.
+        pendingPosition = nil
+        suspendFor(SUSPEND_AFTER_CLASS_CHANGE_S)
+        MapTelemetry.markInactive("suspend")
+      end
+      lastClassName = className
+    else
+      lastClassName = className
+    end
+  elseif not isPlayableClass(className) then
+    pendingPosition = nil
+    return nil
   end
 
   return pawn
@@ -213,18 +262,25 @@ function MapTelemetry.onPawnRestart()
   pendingPosition = nil
   suspendFor(SUSPEND_AFTER_RESTART_S)
   wasActive = false
-  MapTelemetry.markInactive()
+  MapTelemetry.markInactive("suspend")
 end
 
-local function writeInactiveTelemetry()
+local function writeInactiveTelemetry(reason)
   local filePath = MapTelemetry.getTelemetryFile()
   if not filePath then return end
 
+  local inactiveReason = reason or "menu"
+  local content = string.format(
+    '{"active":false,"reason":"%s","restartId":%d,"ts":%d}',
+    inactiveReason,
+    restartId,
+    os.time() * 1000
+  )
+
   local ok = pcall(function()
-    local f = io.open(filePath, "w")
-    if not f then return end
-    f:write(string.format('{"active":false,"restartId":%d,"ts":%d}', restartId, os.time() * 1000))
-    f:close()
+    if not writeFileAtomic(filePath, content) then
+      error("telemetry inactive write failed")
+    end
   end)
 
   if ok then
@@ -236,16 +292,20 @@ local function writeInactiveTelemetry()
   end
 end
 
-function MapTelemetry.markInactive()
+function MapTelemetry.markInactive(reason)
+  local inactiveReason = reason or "menu"
   local now = os.clock()
-  if wasActive == false and (now - lastInactiveWriteAt) < INACTIVE_WRITE_INTERVAL_S then
+  if wasActive == false
+    and lastInactiveReason == inactiveReason
+    and (now - lastInactiveWriteAt) < INACTIVE_WRITE_INTERVAL_S then
     return
   end
 
   lastInactiveWriteAt = now
+  lastInactiveReason = inactiveReason
   wasActive = false
   pendingPosition = nil
-  writeInactiveTelemetry()
+  writeInactiveTelemetry(inactiveReason)
 end
 
 local function shouldWriteSample(sample)
@@ -270,19 +330,20 @@ local function writeTelemetry(sample)
   local filePath = MapTelemetry.getTelemetryFile()
   if not filePath then return end
 
+  local content = string.format(
+    '{"active":true,"x":%.2f,"y":%.2f,"forwardX":%.6f,"forwardY":%.6f,"restartId":%d,"ts":%d}',
+    sample.x,
+    sample.y,
+    sample.forwardX,
+    sample.forwardY,
+    restartId,
+    os.time() * 1000
+  )
+
   local ok = pcall(function()
-    local f = io.open(filePath, "w")
-    if not f then return end
-    f:write(string.format(
-      '{"active":true,"x":%.2f,"y":%.2f,"forwardX":%.6f,"forwardY":%.6f,"restartId":%d,"ts":%d}',
-      sample.x,
-      sample.y,
-      sample.forwardX,
-      sample.forwardY,
-      restartId,
-      os.time() * 1000
-    ))
-    f:close()
+    if not writeFileAtomic(filePath, content) then
+      error("telemetry write failed")
+    end
   end)
 
   if not ok then return end
@@ -292,6 +353,7 @@ local function writeTelemetry(sample)
   lastWritten.forwardX = sample.forwardX
   lastWritten.forwardY = sample.forwardY
   wasActive = true
+  lastInactiveReason = nil
 end
 
 function MapTelemetry.runPositionPhase()

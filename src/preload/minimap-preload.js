@@ -26,10 +26,16 @@ contextBridge.exposeInMainWorld('sonarMinimapApi', {
   getMapFogSession: () => ipcRenderer.invoke('get-map-fog-session'),
   pushMapFogSession: (payload) => ipcRenderer.invoke('push-map-fog-session', payload),
   clearMapFogSession: () => ipcRenderer.invoke('clear-map-fog-session'),
+  saveMapMarkers: (saveId, markers) => ipcRenderer.invoke('save-map-markers', saveId, markers),
   onMapFogSessionUpdate: (callback) => {
     const listener = (_event, payload) => callback(payload);
     ipcRenderer.on('map-fog-session-update', listener);
     return () => ipcRenderer.removeListener('map-fog-session-update', listener);
+  },
+  onMapMarkersUpdate: (callback) => {
+    const listener = (_event, payload) => callback(payload);
+    ipcRenderer.on('map-markers-update', listener);
+    return () => ipcRenderer.removeListener('map-markers-update', listener);
   },
   onMinimapSizeUpdate: (callback) => {
     const listener = (_event, payload) => callback(payload);
@@ -37,4 +43,15 @@ contextBridge.exposeInMainWorld('sonarMinimapApi', {
     return () => ipcRenderer.removeListener('minimap-size-update', listener);
   },
   hideBigMap: () => ipcRenderer.invoke('hide-big-map'),
+  setFeatureBindsSuspended: (suspended) => (
+    ipcRenderer.invoke('set-feature-binds-suspended', suspended)
+  ),
+  getMapWaypoint: () => ipcRenderer.invoke('get-map-waypoint'),
+  setMapWaypoint: (payload) => ipcRenderer.invoke('set-map-waypoint', payload),
+  clearMapWaypoint: () => ipcRenderer.invoke('clear-map-waypoint'),
+  onMapWaypointUpdate: (callback) => {
+    const listener = (_event, payload) => callback(payload);
+    ipcRenderer.on('map-waypoint-update', listener);
+    return () => ipcRenderer.removeListener('map-waypoint-update', listener);
+  },
 });

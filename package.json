@@ -1,6 +1,6 @@
 {
   "name": "sonarlink",
-  "version": "2.0.10",
+  "version": "2.1.1",
   "description": "SonarLink mod companion for Subnautica 2",
   "main": "src/main/index.js",
   "author": "Hermann Svehagen",
